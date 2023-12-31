@@ -1,4 +1,9 @@
+'''
+参考:
+https://fastapi.tiangolo.com/ja/tutorial/
+'''
 from fastapi import FastAPI
+from enum import Enum
 
 brest_service = FastAPI()
 APP_ROOT = "/brest/"
@@ -25,3 +30,25 @@ async def brest_echo(message: str):
 async def brest_pow(number: int): #型情報を書くことで整数でない値を渡した時に詳細なエラーを表示できる。
     return {"result": number ** 2}
 
+# class ModelName():
+#     def __init__(self, name: str) -> None:
+#         self.name = name
+
+# class Models(Enum):
+#     foonet = ModelName("foo")
+#     barnet = ModelName("bar")
+#     baznet = ModelName("baz")
+
+#strを継承させないとパスパラメータの値から定義済みのクラス（ここではModels）を得ることができない。
+class Models(str, Enum):
+    foonet = "foo"
+    barnet = "bar"
+    baznet = "bar"
+
+@brest_service.get(APP_ROOT + "models/{model}")
+async def get_model_description(model: Models):
+    if model is Models.foonet:
+        return {"name": model.name, "message": "foonet is poor"}
+    if model.value == "bar":
+        return {"name": model.name, "message": "barnet is good"}
+    return {{"name": model.name, "message": "baznet is stupid"}}

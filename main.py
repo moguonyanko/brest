@@ -4,6 +4,7 @@ https://fastapi.tiangolo.com/ja/tutorial/
 '''
 from fastapi import FastAPI
 from enum import Enum
+import json
 
 brest_service = FastAPI()
 APP_ROOT = "/brest/"
@@ -52,3 +53,8 @@ async def get_model_description(model: Models):
     if model.value == "bar":
         return {"name": model.name, "message": "barnet is good"}
     return {{"name": model.name, "message": "baznet is stupid"}}
+
+@brest_service.get(APP_ROOT + "files/{file_path:path}")
+async def read_json(file_path: str):
+    with open(f"/{file_path}" , encoding="UTF-8") as f:
+        return json.loads(f.read())

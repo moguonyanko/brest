@@ -2,7 +2,7 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from enum import Enum
 import json
 from typing import Union
@@ -141,3 +141,17 @@ async def register_item(item_id: int, item: MyItem, description: Union[str, None
     if description:
         items.update({"description": description})
     return items
+
+#第1引数が...のQueryは必須パラメータになる。
+@brest_service.get(APP_ROOT + "query/")
+async def read_query(p: str = Query(..., min_length=1), 
+                     q: Union[str, None] = Query(default=None, max_length=10, 
+                                                 min_length=3,
+                                                 pattern="[A-Za-z]")):
+    sample = {
+        "members": [{"id": "Mike"}, {"id": "Taro"}]
+    }
+    sample.update({"p": p})
+    if q:
+        sample.update({"q": q})
+    return sample

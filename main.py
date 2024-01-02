@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from enum import Enum
 import json
 from typing import Union
+from pydantic import BaseModel
 
 brest_service = FastAPI()
 APP_ROOT = "/brest/"
@@ -60,19 +61,33 @@ async def read_json(file_path: str):
     with open(f"/{file_path}", encoding="utf-8") as f:
         return json.loads(f.read())
 
-sample_items = [
-    {
-        "item_name": "𩸽",
-        "price": 300
-    },
-    {
-        "item_name": "𠮷野家",
-        "price": 10000
-    },
-    {
-        "item_name": "髙﨑〜彁",
-        "price": 200
-    }
+class MyItem(BaseModel):
+    item_name: str
+    description: Union[str, None] = None
+    price: float
+    tax: Union[float, None] = None
+    
+    def __str__(self) -> str:
+        return json.dumps({
+            "item_name": self.item_name,
+            "description": self.description,
+            "price": self.price,
+            "tax": self.tax
+        })
+
+sample_items: [MyItem] = [
+    MyItem(
+        item_name = "𩸽",
+        price = 300
+    ),
+    MyItem(
+        item_name = "𠮷野家",
+        price = 10000
+    ),
+    MyItem(
+        item_name = "髙﨑〜彁",
+        price = 200
+    )
 ]
 
 '''
@@ -116,3 +131,13 @@ async def get_user(group_name: str, user_name: str, score: Union[int, None] = No
     if user == None or score and user.get("score") < score:
         return {}
     return user
+
+@brest_service.post(APP_ROOT + "items/{item_id}")
+async def register_item(item_id: int, item: MyItem, description: Union[str, None] = None):
+    items = {"item_id": item_id, **item.model_dump()}
+    if item.tax:
+        price_with_tax = item.price * (1 + item.tax)
+        items.update({"price_with_tax" : price_with_tax})
+    if description:
+        items.update({"description": description})
+    return items

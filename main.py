@@ -153,7 +153,8 @@ def get_sample_members():
 async def read_query(p: str = Query(..., min_length=1), 
                      q: Union[str, None] = Query(default=None, max_length=10, 
                                                  min_length=3,
-                                                 pattern="[A-Za-z]")):
+                                                 pattern="[A-Za-z]",
+                                                 deprecated=True)):
     sample = get_sample_members()
     sample.update({"p": p})
     if q:
@@ -165,7 +166,8 @@ async def read_query(p: str = Query(..., min_length=1),
 async def read_multi_query(q: list = Query(default=["Default"], 
                                            title="Multi Query String", 
                                            description="複数のクエリパラメータを受け取るサンプル関数です。",
-                                           max_length=10)):
+                                           max_length=10,
+                                           alias="member-query")):
     sample = get_sample_members()
     if q:
         sample.update({"q": q})

@@ -5,7 +5,7 @@ https://fastapi.tiangolo.com/ja/tutorial/
 from fastapi import FastAPI, Query
 from enum import Enum
 import json
-from typing import Union
+from typing import Union, List
 from pydantic import BaseModel
 
 brest_service = FastAPI()
@@ -142,16 +142,31 @@ async def register_item(item_id: int, item: MyItem, description: Union[str, None
         items.update({"description": description})
     return items
 
+def get_sample_members():
+    sample = {
+        "members": [{"id": "Mike"}, {"id": "Taro"}]
+    }
+    return sample
+
 #第1引数が...のQueryは必須パラメータになる。
 @brest_service.get(APP_ROOT + "query/")
 async def read_query(p: str = Query(..., min_length=1), 
                      q: Union[str, None] = Query(default=None, max_length=10, 
                                                  min_length=3,
                                                  pattern="[A-Za-z]")):
-    sample = {
-        "members": [{"id": "Mike"}, {"id": "Taro"}]
-    }
+    sample = get_sample_members()
     sample.update({"p": p})
+    if q:
+        sample.update({"q": q})
+    return sample
+
+#Unionではなくlistで宣言しないとdocs上で複数のパラメータを指定できるUIが適用されない。
+@brest_service.get(APP_ROOT + "multiquery/")
+async def read_multi_query(q: list = Query(default=["Default"], 
+                                           title="Multi Query String", 
+                                           description="複数のクエリパラメータを受け取るサンプル関数です。",
+                                           max_length=10)):
+    sample = get_sample_members()
     if q:
         sample.update({"q": q})
     return sample

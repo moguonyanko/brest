@@ -2,10 +2,10 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Path
 from enum import Enum
 import json
-from typing import Union, List
+from typing import Union, List, Annotated
 from pydantic import BaseModel
 
 brest_service = FastAPI()
@@ -172,3 +172,28 @@ async def read_multi_query(q: list = Query(default=["Default"],
     if q:
         sample.update({"q": q})
     return sample
+
+def get_sample_items():
+    return {
+        1: {
+           "name": "Apple" 
+        },
+        2: {
+           "name": "Banana" 
+        },
+        3: {
+           "name": "Orange" 
+        }
+    }
+
+@brest_service.get(APP_ROOT + "items/{item_id}")
+async def get_item_by_id(
+    item_id: Annotated[int, Path(title="品物取得用ID")], #itemsのキーがintの場合
+    q: Annotated[str | None, Query(alias="member-query")] = None
+    ):
+    items = get_sample_items()
+    #パスはstrなのでintが必要な場合は変換が必要
+    item = items.get(int(item_id)) or {}
+    if item and q:
+        item.update({"q": q})
+    return item

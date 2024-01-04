@@ -197,3 +197,18 @@ async def get_item_by_id(
     if item and q:
         item.update({"q": q})
     return item
+
+@brest_service.get(APP_ROOT + "items_annotated/{item_id}")
+async def get_item_by_id_and_annotated(
+    #item_idが1以上10未満でなければエラーになる。
+    #Pathはバリデーションのためにあると考えてよさそう。
+    item_id: Annotated[int, Path(title="品物取得用ID", ge=1, lt=10)], 
+    size: Annotated[float, Query(gt=0, lt=10.1)],
+    q: str = None):
+    items = get_sample_items()
+    item = items.get(int(item_id)) or {}
+    if item and q:
+        item.update({"q": q})
+    if size:
+        item.update({"size": size})
+    return item

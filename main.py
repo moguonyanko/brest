@@ -2,7 +2,7 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI, Query, Path
+from fastapi import FastAPI, Query, Path, Body
 from enum import Enum
 import json
 from typing import Union, List, Annotated
@@ -231,13 +231,22 @@ sample_item_dict = {
     }
 }
 
+'''
+Body()を使って指定することでクエリパラメータではなくリクエストボディであるとFastAPIに認識させる。
+'''
 @brest_service.put(APP_ROOT + "items/{item_id}")
-async def save_item(item_id: int, item: MyItem, user: MyUser):
+async def save_item(item_id: int, 
+                    item: MyItem, 
+                    user: Annotated[MyUser, Body(embed=True)],
+                    memo: Annotated[str, Body()] = "特になし",
+                    test_code: Annotated[int, Body(ge=0)] = 0):
     new_item = {
         item_id: {
             "item": item,
-            "user": user
+            "user": user,
         }
     }
     sample_item_dict.update(new_item)
+    sample_item_dict.update({"memo": memo})
+    sample_item_dict.update({"test_code": test_code})
     return sample_item_dict

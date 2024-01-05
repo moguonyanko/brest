@@ -6,7 +6,7 @@ from fastapi import FastAPI, Query, Path, Body
 from enum import Enum
 import json
 from typing import Union, List, Annotated
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 brest_service = FastAPI()
 APP_ROOT = "/brest/"
@@ -63,9 +63,9 @@ async def read_json(file_path: str):
 
 class MyItem(BaseModel):
     item_name: str
-    description: Union[str, None] = None
-    price: float
-    tax: Union[float, None] = None
+    description: str | None = Field(default=None, title="品物の説明", max_length=10)
+    price: float = Field(gt=0.1, description="品物の値段です。")
+    tax: float | None = None
     
     def __str__(self) -> str:
         return json.dumps({

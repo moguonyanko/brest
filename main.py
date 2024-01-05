@@ -5,8 +5,8 @@ https://fastapi.tiangolo.com/ja/tutorial/
 from fastapi import FastAPI, Query, Path, Body
 from enum import Enum
 import json
-from typing import Union, List, Annotated
-from pydantic import BaseModel, Field
+from typing import Union, Annotated
+from pydantic import BaseModel, Field, HttpUrl
 
 brest_service = FastAPI()
 APP_ROOT = "/brest/"
@@ -61,11 +61,17 @@ async def read_json(file_path: str):
     with open(f"/{file_path}", encoding="utf-8") as f:
         return json.loads(f.read())
 
+class MyImage(BaseModel):
+    url: HttpUrl #妥当なURLかどうかどチェックすることができるようになる。
+    file_name: str
+
 class MyItem(BaseModel):
     item_name: str
     description: str | None = Field(default=None, title="品物の説明", max_length=10)
     price: float = Field(gt=0.1, description="品物の値段です。")
     tax: float | None = None
+    tags: set[str] = set() #setで宣言してもリクエストボディでは配列でパラメータを渡すことになる。
+    images: list[MyImage] = []
     
     def __str__(self) -> str:
         return json.dumps({
@@ -78,7 +84,13 @@ class MyItem(BaseModel):
 sample_items: [MyItem] = [
     MyItem(
         item_name = "𩸽",
-        price = 300
+        price = 300,
+        tags = {"test", "sample"},
+        images = [
+            MyImage(url="https://localhost/sampleimages/", file_name="sampleimage1.jpg"),
+            MyImage(url="https://myhost/testimages/", file_name="testimage1.png"),
+            MyImage(url="https://myhost/testimages/", file_name="testimage2.png")
+        ]
     ),
     MyItem(
         item_name = "𠮷野家",
@@ -250,3 +262,17 @@ async def save_item(item_id: int,
     sample_item_dict.update({"memo": memo})
     sample_item_dict.update({"test_code": test_code})
     return sample_item_dict
+
+class MyOffer(BaseModel):
+    name: str
+    description: str = ""
+    price: float
+    items: list[MyItem] #[MyItem]だけだとエラーになる。
+
+@brest_service.post(APP_ROOT + "offers/")
+async def echo_offer(offer: MyOffer):
+    return offer
+
+@brest_service.post(APP_ROOT + "images/")
+async def echo_images(images: list[MyImage]):
+    return images

@@ -204,7 +204,7 @@ async def get_item_by_id_and_annotated(
     #Pathはバリデーションのためにあると考えてよさそう。
     item_id: Annotated[int, Path(title="品物取得用ID", ge=1, lt=10)], 
     size: Annotated[float, Query(gt=0, lt=10.1)],
-    q: str = None):
+    q: str | None = None):
     items = get_sample_items()
     item = items.get(int(item_id)) or {}
     if item and q:
@@ -212,3 +212,32 @@ async def get_item_by_id_and_annotated(
     if size:
         item.update({"size": size})
     return item
+
+'''
+引数名を指定しないとエラーになるコンストラクタが宣言されていると考えてよい。
+'''
+class MyUser(BaseModel):
+    name: str
+    age: int
+
+sample_my_users: [MyUser] = [
+    MyUser(name="Masao", age=38)
+]
+
+sample_item_dict = {
+    "1": {
+        "item": sample_items[0],
+        "user": sample_my_users[0]
+    }
+}
+
+@brest_service.put(APP_ROOT + "items/{item_id}")
+async def save_item(item_id: int, item: MyItem, user: MyUser):
+    new_item = {
+        item_id: {
+            "item": item,
+            "user": user
+        }
+    }
+    sample_item_dict.update(new_item)
+    return sample_item_dict

@@ -66,12 +66,16 @@ class MyImage(BaseModel):
     file_name: str
 
 class MyItem(BaseModel):
-    item_name: str
-    description: str | None = Field(default=None, title="品物の説明", max_length=10)
-    price: float = Field(gt=0.1, description="品物の値段です。")
+    item_name: str = Field(examples=["no name"])
+    description: str | None = Field(default=None, title="品物の説明", max_length=10, examples=["特になし"])
+    price: float = Field(gt=0.1, description="品物の値段です。", examples=[1.0])
     tax: float | None = None
     tags: set[str] = set() #setで宣言してもリクエストボディでは配列でパラメータを渡すことになる。
     images: list[MyImage] = []
+
+    option_config: dict = {
+        "testcode": "TEST"
+    }
     
     def __str__(self) -> str:
         return json.dumps({
@@ -248,7 +252,29 @@ Body()を使って指定することでクエリパラメータではなくリ�
 '''
 @brest_service.put(APP_ROOT + "items/{item_id}")
 async def save_item(item_id: int, 
-                    item: MyItem, 
+                    item: Annotated[MyItem, 
+                                    Body(
+                        openapi_examples={
+                            "one_example": {
+                                "summary": "Example No.1",
+                                "description": "例1",
+                                "value": {
+                                    "item_name": "my sample",
+                                    "description": "nothing",
+                                    "price": 100,
+                                    "tax": 0.1
+                                }
+                            },
+                            "two_example": {
+                                "summary": "Example No.2",
+                                "description": "例2",
+                                "value": {
+                                    "item_name": "my test",
+                                    "price": 999,
+                                }
+                            }
+                        }
+                    )], 
                     user: Annotated[MyUser, Body(embed=True)],
                     memo: Annotated[str, Body()] = "特になし",
                     test_code: Annotated[int, Body(ge=0)] = 0):

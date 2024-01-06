@@ -7,6 +7,8 @@ from enum import Enum
 import json
 from typing import Union, Annotated
 from pydantic import BaseModel, Field, HttpUrl
+from uuid import UUID
+from datetime import datetime, time, timedelta
 
 brest_service = FastAPI()
 APP_ROOT = "/brest/"
@@ -302,3 +304,18 @@ async def echo_offer(offer: MyOffer):
 @brest_service.post(APP_ROOT + "images/")
 async def echo_images(images: list[MyImage]):
     return images
+
+@brest_service.get(APP_ROOT + "duration/{item_id}")
+async def get_duration(
+    item_id: UUID,
+    start_datetime: Annotated[datetime | None, None] = None,
+    end_datetime: Annotated[datetime | None, None] = None,
+    repeat_at: Annotated[time | None, None] = None,
+    proccess_after: Annotated[timedelta | None, None] = None
+):
+    start_process = start_datetime + proccess_after
+    duration = end_datetime - start_process
+    return {
+        "item_id": item_id,
+        "duration": duration
+    }

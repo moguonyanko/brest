@@ -2,7 +2,7 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI, Query, Path, Body
+from fastapi import FastAPI, Query, Path, Body, Cookie
 from enum import Enum
 import json
 from typing import Union, Annotated
@@ -319,3 +319,7 @@ async def get_duration(
         "item_id": item_id,
         "duration": duration
     }
+
+@brest_service.get(APP_ROOT + "samplecookie/")
+async def echo_cookie(sample_id: str | None = Cookie(default=None)):
+    return {"sample_id": sample_id}

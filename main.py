@@ -2,7 +2,7 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI, Query, Path, Body, Cookie
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header
 from enum import Enum
 import json
 from typing import Union, Annotated
@@ -323,3 +323,12 @@ async def get_duration(
 @brest_service.get(APP_ROOT + "samplecookie/")
 async def echo_cookie(sample_id: str | None = Cookie(default=None)):
     return {"sample_id": sample_id}
+
+@brest_service.get(APP_ROOT + "useragent/")
+async def echo_useragent(user_agent: Annotated[str | None, Header()] = None):
+    return {"UserAgent": user_agent}
+
+@brest_service.get(APP_ROOT + "duplicateheaders/")
+async def get_sample_token_headers(x_my_token: Annotated[list[str], Header()] = []):
+    #複数のヘッダーを送ってもx_my_tokenが文字列一つで構成されるリストになってしまう。
+    return {"xMyToken": x_my_token[0].split(",")}

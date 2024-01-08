@@ -335,30 +335,22 @@ async def get_sample_token_headers(x_my_token: Annotated[list[str], Header()] = 
 
 class MyProfile(BaseModel):
     name: str = Field(default="", examples=["Taro"])
-    password: str = Field(examples=["Brest2024_pass"])
     age: int = Field(ge=0, le=130, examples=[18])
     favorites: list[str] = []
     email: EmailStr | None = Field(default=None, examples=["mymail@dummymail.co.jp"])
 
-class MyProfileResult(BaseModel):
-    name: str
-    age: int
-    email: EmailStr
+class MyProfileInput(MyProfile):
+    password: str = Field(examples=["Brest2024_pass"])
 
 sample_my_profiles = [
     MyProfile(name="Mike", password="MiPass8374W", age=43, 
               favorites=["Baseball", "Car", "Walking"])
 ]
 
-'''
-response_modelを使って型を指定する方がFastAPI的には良さそうに思えるが関数の戻り値の型として指定する方が
-フレームワークやライブラリに依存せず汎用的な記述であるように感じられる。
-'''
-@brest_service.post(APP_ROOT + "myprofile/", response_model=MyProfileResult)
-async def save_my_profile(profile: MyProfile) -> Any:
+@brest_service.post(APP_ROOT + "myprofile/")
+async def save_my_profile(profile: MyProfileInput) -> MyProfile: #passwordが見えない型で返す。
     sample_my_profiles.append(profile)
-    result = MyProfileResult(name=profile.name, age=profile.age, email=profile.email)
-    return result
+    return profile
 
 @brest_service.get(APP_ROOT + "myprofile/", response_model=list[MyProfile])
 async def get_all_my_profiles() -> list[MyProfile]:

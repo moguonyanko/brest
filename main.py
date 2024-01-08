@@ -6,7 +6,7 @@ from fastapi import FastAPI, Query, Path, Body, Cookie, Header
 from enum import Enum
 import json
 from typing import Union, Annotated
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
 from uuid import UUID
 from datetime import datetime, time, timedelta
 
@@ -332,3 +332,25 @@ async def echo_useragent(user_agent: Annotated[str | None, Header()] = None):
 async def get_sample_token_headers(x_my_token: Annotated[list[str], Header()] = []):
     #複数のヘッダーを送ってもx_my_tokenが文字列一つで構成されるリストになってしまう。
     return {"xMyToken": x_my_token[0].split(",")}
+
+class MyProfile(BaseModel):
+    name: str = Field(examples=["Taro"])
+    age: int = Field(examples=[18])
+    favorites: list[str] = []
+
+sample_my_profiles = [
+    MyProfile(name="Mike", age=43, favorites=["Baseball", "Car", "Walking"])
+]
+
+'''
+response_modelを使って型を指定する方がFastAPI的には良さそうに思えるが関数の戻り値の型として指定する方が
+フレームワークやライブラリに依存せず汎用的な記述であるように感じられる。
+'''
+@brest_service.post(APP_ROOT + "myprofile/", response_model=MyProfile)
+async def save_my_profile(profile: MyProfile) -> MyProfile:
+    sample_my_profiles.append(profile)
+    return profile
+
+@brest_service.get(APP_ROOT + "myprofile/", response_model=list[MyProfile])
+async def get_all_my_profiles() -> list[MyProfile]:
+    return sample_my_profiles

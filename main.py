@@ -2,7 +2,8 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI, Query, Path, Body, Cookie, Header
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response
+from fastapi.responses import JSONResponse, RedirectResponse
 from enum import Enum
 import json
 from typing import Union, Annotated, Any
@@ -356,3 +357,9 @@ async def save_my_profile(profile: MyProfileInput) -> MyProfile: #passwordが見
 async def get_all_my_profiles() -> list[MyProfile]:
     return sample_my_profiles
     
+@brest_service.get(APP_ROOT + "search/")
+async def get_search_word(test_mode: bool = False, q: str = "") -> Response:
+    if test_mode:
+        return JSONResponse({"query": q})
+    search_url = f"https://www.google.co.jp/search?q={q}"
+    return RedirectResponse(url=search_url)

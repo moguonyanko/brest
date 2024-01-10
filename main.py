@@ -363,3 +363,13 @@ async def get_search_word(test_mode: bool = False, q: str = "") -> Response:
         return JSONResponse({"query": q})
     search_url = f"https://www.google.co.jp/search?q={q}"
     return RedirectResponse(url=search_url)
+
+'''
+Response系以外を戻り値に指定したければresponse_model=Noneを指定しておく。
+'''
+@brest_service.get(APP_ROOT + "search_dict/", response_model=None)
+async def get_search_word_dict(test_mode: bool = False, q: str = "") -> Response | dict:
+    if test_mode:
+        return JSONResponse({"query": q})
+    search_url = f"https://www.google.co.jp/search?q={q}"
+    return {"search_url": search_url}

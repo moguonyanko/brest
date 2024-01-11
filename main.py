@@ -71,7 +71,7 @@ class MyImage(BaseModel):
 class MyItem(BaseModel):
     item_name: str = Field(examples=["no name"])
     description: str | None = Field(default=None, title="品物の説明", max_length=10, examples=["特になし"])
-    price: float = Field(gt=0.1, description="品物の値段です。", examples=[1.0])
+    price: float = Field(ge=0.0, description="品物の値段です。", examples=[1.0])
     tax: float | None = None
     tags: set[str] = set() #setで宣言してもリクエストボディでは配列でパラメータを渡すことになる。
     images: list[MyImage] = []
@@ -373,3 +373,56 @@ async def get_search_word_dict(test_mode: bool = False, q: str = "") -> Response
         return JSONResponse({"query": q})
     search_url = f"https://www.google.co.jp/search?q={q}"
     return {"search_url": search_url}
+
+sample_response_items = {
+    "1": {
+        "item_name": "Apple",
+        "description": "赤いりんごです",
+        "price": 200
+    },
+    "2": {
+        "item_name": "Orange",
+        "description": "橙みかんです",
+        "price": 130
+    },
+    "3": {
+        "item_name": "Melon",
+        "description": "メロンは高い",
+        "price": 2000
+    }
+}
+
+'''
+response_model_exclude_unset=Falseだとクラス側で定義したデフォルト値を使ってオブジェクトの生成が行われる。
+'''
+@brest_service.get(APP_ROOT + "response_items/{item_id}", 
+                   response_model=MyItem, response_model_exclude_unset=False)
+async def get_response_item(item_id: str):
+    if item_id in sample_response_items:
+        return sample_response_items.get(item_id)
+    else:
+        return {"item_name": "Empty", "price": 0}
+
+'''
+レスポンスにはresponse_model_includeに指定したプロパティしか含まれなくなる。
+'''
+@brest_service.get(APP_ROOT + "response_items_price_and_tax/{item_id}", 
+                   response_model=MyItem, 
+                   response_model_include={"item_name", "price", "tax"})
+async def get_response_item_nodesc(item_id: str):
+    if item_id in sample_response_items:
+        return sample_response_items.get(item_id)
+    else:
+        return {"item_name": "Empty"}
+
+'''
+レスポンスにはresponse_model_excludeに指定したプロパティ以外が含まれる。
+'''
+@brest_service.get(APP_ROOT + "response_items_exclude_desc/{item_id}", 
+                   response_model=MyItem, 
+                   response_model_exclude={"description"})
+async def get_response_item_nodesc(item_id: str):
+    if item_id in sample_response_items:
+        return sample_response_items.get(item_id)
+    else:
+        return {"item_name": "Empty"}

@@ -408,6 +408,8 @@ async def get_response_item(item_id: str):
 '''
 @brest_service.get(APP_ROOT + "response_items_price_and_tax/{item_id}", 
                    response_model=MyItem, 
+                   #setではなくlistやtupleで指定してもsetに自動的に変換される。すなわち重複した値は1つにまとめられる。
+                   #response_model_include=["item_name", "price", "tax", "item_name"],
                    response_model_include={"item_name", "price", "tax"})
 async def get_response_item_nodesc(item_id: str):
     if item_id in sample_response_items:

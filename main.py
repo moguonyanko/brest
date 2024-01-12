@@ -428,3 +428,32 @@ async def get_response_item_nodesc(item_id: str):
         return sample_response_items.get(item_id)
     else:
         return {"item_name": "Empty"}
+
+class MyCardIn(BaseModel):
+    email: EmailStr
+    password: str
+    description: str | None = None
+
+class MyCardOut(BaseModel):
+    email: EmailStr
+    description: str | None = None
+
+class MyCardInDB(BaseModel):
+    email: EmailStr
+    cipher_password: str
+    description: str | None = None
+
+def do_cipher(password: str) -> str:
+    return f"SECRET-{password}"
+
+def save_my_card(my_card_in: MyCardIn) -> MyCardInDB:
+    cipher_password = do_cipher(my_card_in.password)
+    my_card_dump = my_card_in.model_dump()
+    my_card_in_db = MyCardInDB(**my_card_dump, cipher_password=cipher_password)
+    print("カード情報保存完了！")
+    return my_card_in_db
+
+@brest_service.post(APP_ROOT + "mycard/", response_model=MyCardOut)
+async def register_my_card(my_card_in: MyCardIn):
+    saved_my_card = save_my_card(my_card_in)
+    return saved_my_card

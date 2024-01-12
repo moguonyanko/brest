@@ -466,3 +466,30 @@ async def register_my_card(my_card_in: MyCardIn):
     #response_modelさえ正確に指定していれば誤ったオブジェクトを返すリスクが下がるともいえる。
     return my_card_in_db
     #return MyCardOut(**my_card_in_db.model_dump())
+
+class SampleModel(BaseModel):
+    name: str
+
+class NumberModel(SampleModel):
+    number: int
+
+class UserModel(SampleModel):
+    age: int
+    favorites: list[str] = []
+
+sample_models = {
+    1: {
+        "name": "test model",
+        "number": 1
+    },
+    2: {
+        "name": "Joe",
+        "age": 32,
+        "favorites": ["Apple", "Orange"]
+    }
+}
+
+@brest_service.get(APP_ROOT + "samplemode/{samplemodel_id}", 
+                   response_model=NumberModel | UserModel)
+async def get_sample_model(samplemodel_id: str):
+    return sample_models[int(samplemodel_id)]

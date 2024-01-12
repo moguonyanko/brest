@@ -429,31 +429,40 @@ async def get_response_item_nodesc(item_id: str):
     else:
         return {"item_name": "Empty"}
 
+#TODO: 継承ではなく委譲で共通部分を集約したい。
+# class MyCardBasicInfo(BaseModel):
+#     email: EmailStr
+#     description: str | None = None    
+
 class MyCardIn(BaseModel):
     email: EmailStr
+    description: str | None = None    
     password: str
-    description: str | None = None
-
-class MyCardOut(BaseModel):
-    email: EmailStr
-    description: str | None = None
 
 class MyCardInDB(BaseModel):
     email: EmailStr
+    description: str | None = None    
     cipher_password: str
-    description: str | None = None
 
+class MyCardOut(BaseModel):
+    email: EmailStr
+    description: str | None = None    
+        
 def do_cipher(password: str) -> str:
     return f"SECRET-{password}"
 
 def save_my_card(my_card_in: MyCardIn) -> MyCardInDB:
-    cipher_password = do_cipher(my_card_in.password)
-    my_card_dump = my_card_in.model_dump()
-    my_card_in_db = MyCardInDB(**my_card_dump, cipher_password=cipher_password)
-    print("カード情報保存完了！")
+    my_card_in_db = MyCardInDB(email=my_card_in.email, description=my_card_in.description,
+                               cipher_password=do_cipher(my_card_in.password))
+    print("カード情報を保存したとします。")
     return my_card_in_db
 
 @brest_service.post(APP_ROOT + "mycard/", response_model=MyCardOut)
 async def register_my_card(my_card_in: MyCardIn):
-    saved_my_card = save_my_card(my_card_in)
-    return saved_my_card
+    my_card_in_db = save_my_card(my_card_in)
+    #BaseModelを継承していないとmodel_dumpできない。
+    #my_card_in_dbをそのまま返してもMyCardOutで見える範囲のプロパティしか公開されないが
+    #それでもパスワードを含むMyCardInDBオブジェクトをそのまま返すのは抵抗がある。
+    #response_modelさえ正確に指定していれば誤ったオブジェクトを返すリスクが下がるともいえる。
+    return my_card_in_db
+    #return MyCardOut(**my_card_in_db.model_dump())

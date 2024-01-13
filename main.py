@@ -489,7 +489,20 @@ sample_models = {
     }
 }
 
-@brest_service.get(APP_ROOT + "samplemode/{samplemodel_id}", 
+@brest_service.get(APP_ROOT + "samplemodel/{samplemodel_id}", 
                    response_model=NumberModel | UserModel)
 async def get_sample_model(samplemodel_id: str):
     return sample_models[int(samplemodel_id)]
+
+@brest_service.get(APP_ROOT + "allsamplemodels/", 
+                   response_model=list[SampleModel])
+async def get_all_sample_models():
+    return sample_models.values()
+
+'''
+SampleModel型で参照できるフィールドしかレスポンスには含まれない。
+'''
+@brest_service.get(APP_ROOT + "samplemodeldict/", 
+                   response_model=dict[int, SampleModel])
+async def get_sample_model_dict():
+    return sample_models

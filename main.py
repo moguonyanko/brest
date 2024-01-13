@@ -2,7 +2,7 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from enum import Enum
 import json
@@ -511,6 +511,6 @@ async def get_sample_model_dict():
 リクエストパラメータで受け取りたければPathではなくQueryでパラメータを指定する必要がある。
 '''
 @brest_service.post(APP_ROOT + "sampleaccount/", response_model=dict[str, EmailStr], 
-                    status_code=201)
+                    status_code=status.HTTP_201_CREATED)
 async def echo_sample_account(email: EmailStr = Query(example="sample@mymail.co.jp")):
     return {"email": email}

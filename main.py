@@ -506,3 +506,11 @@ SampleModel型で参照できるフィールドしかレスポンスには含ま
                    response_model=dict[int, SampleModel])
 async def get_sample_model_dict():
     return sample_models
+
+'''
+リクエストパラメータで受け取りたければPathではなくQueryでパラメータを指定する必要がある。
+'''
+@brest_service.post(APP_ROOT + "sampleaccount/", response_model=dict[str, EmailStr], 
+                    status_code=201)
+async def echo_sample_account(email: EmailStr = Query(example="sample@mymail.co.jp")):
+    return {"email": email}

@@ -2,7 +2,7 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status, Form
 from fastapi.responses import JSONResponse, RedirectResponse
 from enum import Enum
 import json
@@ -514,3 +514,10 @@ async def get_sample_model_dict():
                     status_code=status.HTTP_201_CREATED)
 async def echo_sample_account(email: EmailStr = Query(example="sample@mymail.co.jp")):
     return {"email": email}
+
+@brest_service.post(APP_ROOT + "auth/", response_model=dict[str, str])
+async def echo_authentication(username: Annotated[str, Form(example=["テストユーザー"])], 
+                              password: Annotated[str, Form(example=["8文字以上のパスワード"])]):
+    if len(password) <= 8:
+        return {"status": "400"}    
+    return {"username": username, "password": "*****", "status": "200"}

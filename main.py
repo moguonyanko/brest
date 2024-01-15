@@ -535,3 +535,12 @@ async def upload_tmp_json_file(file: Annotated[UploadFile, File(description="ア
 @brest_service.post(APP_ROOT + "filesize/", response_model=dict[str, int])
 async def calc_file_size(file: Annotated[bytes, File(description="ファイルサイズが何バイトか計算します")]):
     return {"file_size": len(file)}
+
+@brest_service.post(APP_ROOT + "allfilenames/", response_model=dict[str, list[str]])
+async def get_all_file_names(files: Annotated[list[UploadFile], File(description="アップロードされたファイル群の名前一覧を返します")]):
+    return {"file_names": [file.filename for file in files]}
+
+@brest_service.post(APP_ROOT + "sumfiles/", response_model=dict[str, int])
+async def sum_upload_files(files: Annotated[list[bytes], File(description="ファイル群のサイズ合計を計算します")]):
+    return {"sum": sum([len(file) for file in files])}
+

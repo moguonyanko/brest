@@ -2,7 +2,7 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status, Form
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status, Form, File, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse
 from enum import Enum
 import json
@@ -10,6 +10,7 @@ from typing import Union, Annotated, Any
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 from uuid import UUID
 from datetime import datetime, time, timedelta
+import os
 
 brest_service = FastAPI()
 APP_ROOT = "/brest/"
@@ -521,3 +522,16 @@ async def echo_authentication(username: Annotated[str, Form(example=["テスト�
     if len(password) <= 8:
         return {"status": "400"}    
     return {"username": username, "password": "*****", "status": "200"}
+
+@brest_service.post(APP_ROOT + "files/", status_code=status.HTTP_201_CREATED, 
+                    response_model=dict[str, str])
+async def upload_tmp_json_file(file: UploadFile):
+    data = { "content": (await file.read()).decode('utf-8') }
+    path = "tmp/uploadfile.json"
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+    return data
+
+@brest_service.post(APP_ROOT + "filesize/", response_model=dict[str, int])
+async def calc_file_size(file: Annotated[bytes, File()]):
+    return {"file_size": len(file)}

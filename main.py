@@ -525,7 +525,7 @@ async def echo_authentication(username: Annotated[str, Form(example=["テスト�
 
 @brest_service.post(APP_ROOT + "files/", status_code=status.HTTP_201_CREATED, 
                     response_model=dict[str, str])
-async def upload_tmp_json_file(file: UploadFile):
+async def upload_tmp_json_file(file: Annotated[UploadFile, File(description="アップロードされたファイルを読み込みます")]):
     data = { "content": (await file.read()).decode('utf-8') }
     path = "tmp/uploadfile.json"
     with open(path, "w", encoding="utf-8") as f:
@@ -533,5 +533,5 @@ async def upload_tmp_json_file(file: UploadFile):
     return data
 
 @brest_service.post(APP_ROOT + "filesize/", response_model=dict[str, int])
-async def calc_file_size(file: Annotated[bytes, File()]):
+async def calc_file_size(file: Annotated[bytes, File(description="ファイルサイズが何バイトか計算します")]):
     return {"file_size": len(file)}

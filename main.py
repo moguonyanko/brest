@@ -3,8 +3,11 @@
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
 from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status
-from fastapi import Form, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import Form, File, UploadFile, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse, PlainTextResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from enum import Enum
 import json
 from typing import Union, Annotated, Any
@@ -575,3 +578,47 @@ async def get_sample_record(record_id: str):
                                 "X-HasError": True
                             })
     return sample_records.get(record_id)
+
+class MySampleResourceException(Exception):
+    def __init__(self, user_name: str, *args: object) -> None:
+        super().__init__(*args)
+        self.user_name = user_name
+
+@brest_service.exception_handler(MySampleResourceException)
+async def my_custom_exception_handler(request: Request, ex: MySampleResourceException) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={
+            "message": f"{ex.user_name}によるリソースへのアクセスは禁止されています。"
+        }
+    )
+
+@brest_service.exception_handler(HTTPException)
+async def common_http_exception_handler(request: Request, ex: HTTPException):
+    return PlainTextResponse(ex.detail, status_code=ex.status_code)
+
+@brest_service.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, err: RequestValidationError):
+    return JSONResponse(content=jsonable_encoder({
+                            "detail": err.errors(),
+                            "body": err.body
+                        }), 
+                        status_code=status.HTTP_400_BAD_REQUEST)
+
+@brest_service.get(APP_ROOT + "sampleresource/{user_name}", response_model=dict[str, str])
+async def get_sample_resource(user_name: Annotated[str, Path(example="admin")], 
+                              age: Annotated[int, Query(example=18)],
+                              message: Annotated[str | None, Query(example="test")]):
+    if not user_name == "admin":
+        raise MySampleResourceException(user_name=user_name)
+    if not age >= 18:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Adult only")
+    if len(message) <= 0:
+        raise RequestValidationError(errors=["Bad empty message"])
+    return {"user_name": user_name}
+
+@brest_service.post(APP_ROOT + "checkmyprofile/", response_model=MyProfile)
+async def check_my_profile(profile: MyProfile): 
+    if len(profile.name) <= 0:
+        raise RequestValidationError(errors=["名前を入力してください"])
+    return profile

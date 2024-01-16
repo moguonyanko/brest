@@ -544,3 +544,16 @@ async def get_all_file_names(files: Annotated[list[UploadFile], File(description
 async def sum_upload_files(files: Annotated[list[bytes], File(description="ファイル群のサイズ合計を計算します")]):
     return {"sum": sum([len(file) for file in files])}
 
+@brest_service.post(APP_ROOT + "filemetadata/", response_model=dict[str, Any])
+async def get_file_metadata(upload_file: Annotated[UploadFile, File()],
+                            #オプションパラメータにするとファイル用のUIがドキュメントに表示されない。
+                            sample_file: Annotated[bytes | None, File()] = None,
+                            #intとして不適切な値を入力された場合はエラーにできる。
+                            sample_number: Annotated[int | None, Form()] = None):
+    return {
+        "uploadFileContentType": upload_file.content_type, 
+        "uploadFileSize": upload_file.size,
+        "sampleFileSize": len(sample_file) if sample_file else 0,
+        #float('nan')を指定するとJSONのレスポンスを生成するタイミングでエラーになる。
+        "sampleNumber": sample_number if sample_number else -1 
+    }

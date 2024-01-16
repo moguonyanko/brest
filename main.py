@@ -2,7 +2,8 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status, Form, File, UploadFile
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status
+from fastapi import Form, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 from enum import Enum
 import json
@@ -557,3 +558,20 @@ async def get_file_metadata(upload_file: Annotated[UploadFile, File()],
         #float('nan')を指定するとJSONのレスポンスを生成するタイミングでエラーになる。
         "sampleNumber": sample_number if sample_number else -1 
     }
+
+sample_records: dict[str, str] = {
+    "A001": "Hello",
+    "B001": "こんにちは",
+    "C001": "Bonjour"
+}
+
+#文字列を単体で返してもJSONとしては適切と解釈される。
+@brest_service.get(APP_ROOT + "samplerecord/{record_id}", response_model=str)
+async def get_sample_record(record_id: str):
+    if not record_id in sample_records:
+        raise HTTPException(status_code=404, 
+                            detail=f"{record_id}に対応するレコードは存在しません",
+                            headers={
+                                "X-HasError": True
+                            })
+    return sample_records.get(record_id)

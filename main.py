@@ -7,6 +7,7 @@ from fastapi import Form, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse, PlainTextResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from enum import Enum
 import json
@@ -595,15 +596,19 @@ async def my_custom_exception_handler(request: Request, ex: MySampleResourceExce
 
 @brest_service.exception_handler(HTTPException)
 async def common_http_exception_handler(request: Request, ex: HTTPException):
-    return PlainTextResponse(ex.detail, status_code=ex.status_code)
+    return await http_exception_handler(request, ex)
+#上とほぼ同じ結果を返す。
+#    return PlainTextResponse(ex.detail, status_code=ex.status_code)
 
 @brest_service.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, err: RequestValidationError):
-    return JSONResponse(content=jsonable_encoder({
-                            "detail": err.errors(),
-                            "body": err.body
-                        }), 
-                        status_code=status.HTTP_400_BAD_REQUEST)
+    return await request_validation_exception_handler(request, err)
+#上とほぼ同じ結果を返す。
+    # return JSONResponse(content=jsonable_encoder({
+    #                         "detail": err.errors(),
+    #                         "body": err.body
+    #                     }), 
+    #                     status_code=status.HTTP_400_BAD_REQUEST)
 
 @brest_service.get(APP_ROOT + "sampleresource/{user_name}", response_model=dict[str, str])
 async def get_sample_resource(user_name: Annotated[str, Path(example="admin")], 
@@ -622,3 +627,5 @@ async def check_my_profile(profile: MyProfile):
     if len(profile.name) <= 0:
         raise RequestValidationError(errors=["名前を入力してください"])
     return profile
+
+

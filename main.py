@@ -610,7 +610,12 @@ async def validation_exception_handler(request: Request, err: RequestValidationE
     #                     }), 
     #                     status_code=status.HTTP_400_BAD_REQUEST)
 
-@brest_service.get(APP_ROOT + "sampleresource/{user_name}", response_model=dict[str, str])
+class MyTags(Enum):
+    validators = "validators"
+    authenticators = "authenticators"
+
+@brest_service.get(APP_ROOT + "sampleresource/{user_name}", response_model=dict[str, str],
+                              tags=[MyTags.validators, MyTags.authenticators])
 async def get_sample_resource(user_name: Annotated[str, Path(example="admin")], 
                               age: Annotated[int, Query(example=18)],
                               message: Annotated[str | None, Query(example="test")]):
@@ -622,10 +627,31 @@ async def get_sample_resource(user_name: Annotated[str, Path(example="admin")],
         raise RequestValidationError(errors=["Bad empty message"])
     return {"user_name": user_name}
 
-@brest_service.post(APP_ROOT + "checkmyprofile/", response_model=MyProfile)
+@brest_service.post(APP_ROOT + "checkmyprofile/", response_model=MyProfile, 
+                    tags=[MyTags.validators],
+                    summary="Check my profile",
+                    description="Check MyProfile Object",
+                    response_description="Valid MyProfile Object as JSON")
 async def check_my_profile(profile: MyProfile): 
     if len(profile.name) <= 0:
         raise RequestValidationError(errors=["名前を入力してください"])
     return profile
 
+class MyClock(BaseModel):
+    name: str
+    current: datetime
+    degital: bool = False
+
+#JSON形式しか受け付けない変数という設定
+json_my_clock = {
+    "name": "default",
+    "current": datetime.now,
+    "degital": False
+}
+    
+@brest_service.put(APP_ROOT + "currenttime/", response_model=dict[str, Any])
+async def update_clock(clock: MyClock):
+    json_clock = jsonable_encoder(clock)
+    json_my_clock = json_clock
+    return json_my_clock
 

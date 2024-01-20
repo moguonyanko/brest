@@ -3,7 +3,7 @@
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
 from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status
-from fastapi import Form, File, UploadFile, HTTPException, Request
+from fastapi import Form, File, UploadFile, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse, RedirectResponse, PlainTextResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
@@ -694,3 +694,27 @@ async def patrial_update_my_character(character_id: str, my_character: MyCharact
     updated_character = current_character.model_copy(update=new_data)
     my_characters[character_id] = jsonable_encoder(updated_character)
     return updated_character
+
+sample_config = {
+    "client": {
+        "description": "test client config"
+    },
+    "server": {
+        "description": "test server config"
+    }
+}
+
+async def load_common_config(config_id: str | None = None):
+    if not config_id:
+        return {}
+    return sample_config[config_id]
+
+common_config = Annotated[dict, Depends(load_common_config)]
+
+@brest_service.get(APP_ROOT + "clienttestapp/", response_model=dict[str, Any])
+async def get_client_test_app_config(config: common_config):
+    return config
+
+@brest_service.get(APP_ROOT + "servertestapp/", response_model=dict[str, Any])
+async def get_server_test_app_config(config: common_config):
+    return config

@@ -718,3 +718,32 @@ async def get_client_test_app_config(config: common_config):
 @brest_service.get(APP_ROOT + "servertestapp/", response_model=dict[str, Any])
 async def get_server_test_app_config(config: common_config):
     return config
+
+fake_user_db = [
+    {
+        "name": "Mike"
+    },
+    {
+        "name": "Taro"
+    },
+    {
+        "name": "Joe"
+    },
+]
+
+class CommonQueryParam:
+    def __init__(self, query: str = "", skip: int = 0, limit: int = len(fake_user_db)):
+        self.query = query
+        self.skip = skip
+        self.limit = limit
+
+@brest_service.get(APP_ROOT + "userdata/", response_model=dict[str, Any])
+#async def get_fake_user_data(param: Annotated[CommonQueryParam, Depends(CommonQueryParam)]):
+#重複する型名（ここではCommonQueryParam）は省略可能。
+async def get_fake_user_data(param: Annotated[CommonQueryParam, Depends()]):
+    userdata = {}
+    if param.query:
+        userdata.update({"query": param.query})
+    userdata_list = fake_user_db[param.skip : param.skip + param.limit]
+    userdata.update({ "userDataList": userdata_list })
+    return userdata

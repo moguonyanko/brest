@@ -655,3 +655,42 @@ async def update_clock(clock: MyClock):
     json_my_clock = json_clock
     return json_my_clock
 
+class MyCharacter(BaseModel):
+    name: str = ""
+    description: str | None = None
+    power: int = 0
+    tags: list[str] = []
+
+my_characters = {
+    "taro": {
+        "name" : "Taro",
+        "power" : 100,
+        "tags": ["main", "test"]
+    },
+    "joe": {
+        "name" : "Joe",
+        "description": "Mecanic",
+        "power" : 80
+    },
+    "usao": {
+        "name" : "Usao",
+        "power" : 5,
+        "tags": ["モブ", "古参"]
+    } 
+}
+
+#丸々データを置き換えるのでPUTを使う。
+@brest_service.put(APP_ROOT + "mycharacters/{character_id}", response_model=MyCharacter)
+async def update_my_character(character_id: str, my_character: MyCharacter):
+    character_data = jsonable_encoder(my_character)
+    my_characters[character_id] = character_data
+    return character_data
+
+@brest_service.patch(APP_ROOT + "mycharacters/{character_id}", response_model=MyCharacter)
+async def patrial_update_my_character(character_id: str, my_character: MyCharacter):
+    current_data = my_characters[character_id]
+    current_character = MyCharacter(**current_data)
+    new_data = my_character.model_dump(exclude_unset=True)
+    updated_character = current_character.model_copy(update=new_data)
+    my_characters[character_id] = jsonable_encoder(updated_character)
+    return updated_character

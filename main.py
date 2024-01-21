@@ -747,3 +747,15 @@ async def get_fake_user_data(param: Annotated[CommonQueryParam, Depends()]):
     userdata_list = fake_user_db[param.skip : param.skip + param.limit]
     userdata.update({ "userDataList": userdata_list })
     return userdata
+
+def query_checker(query: str) -> str:
+    #Dummy check
+    return query
+
+def get_test_query(query: Annotated[str, Depends(query_checker, use_cache=False)],
+                   last_query: Annotated[str, Cookie()] = "") -> str:
+    return query if query else last_query
+
+@brest_service.get(APP_ROOT + "testquesy/", response_model=dict[str, str])
+async def read_test_query(query: Annotated[str, Depends(get_test_query, use_cache=False)]):
+    return {"query": query}

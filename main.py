@@ -17,7 +17,11 @@ from uuid import UUID
 from datetime import datetime, time, timedelta
 import os
 
-brest_service = FastAPI()
+def report_brest_service():
+    print(f"REQUEST:{datetime.now()}")
+
+brest_service = FastAPI(dependencies=[Depends(report_brest_service)])
+
 APP_ROOT = "/brest/"
 
 @brest_service.get("/")

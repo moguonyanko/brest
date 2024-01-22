@@ -759,3 +759,24 @@ def get_test_query(query: Annotated[str, Depends(query_checker, use_cache=False)
 @brest_service.get(APP_ROOT + "testquesy/", response_model=dict[str, str])
 async def read_test_query(query: Annotated[str, Depends(get_test_query, use_cache=False)]):
     return {"query": query}
+
+async def check_token(x_token: Annotated[str, Header()]):
+    if x_token == "secret":
+        return x_token
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
+                            detail="トークンが不正です")
+
+async def check_origin(origin: Annotated[str, Header()]):
+    if origin == "https://localhost" or origin == "http://127.0.0.1:8000":
+        return origin
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
+                            detail="オリジンが不正です")
+
+#postでないとOriginヘッダーを送信できない。
+@brest_service.post(APP_ROOT + "member/", dependencies=[Depends(check_token), 
+                                                       Depends(check_origin)],
+                                                       response_model=dict[str, str])
+async def get_valid_member():
+    return {"username": "validuser"}

@@ -799,12 +799,26 @@ sample_user_database = {
 class AdminError(Exception):
     pass
 
+class TestAdminUserLoader():
+    def load(self) -> str:
+        return "Mike"
+
+    def close(self) -> bool:
+        return True
+
+class MyAdminContextManager:
+    def __init__(self):
+        self.loader = TestAdminUserLoader()
+
+    def __enter__(self):
+        return self.loader.load()
+                  
+    def __exit__(self, exc_type, exc_value, traceback):
+        return self.loader.close()
+
 def get_test_admin_username() -> str:
-    try:
-        yield "Mike"
-    except AdminError as err:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
-                            detail=f"Invalid user:{err}")
+    with MyAdminContextManager() as manager:
+        yield manager
     
 @brest_service.get(APP_ROOT + "testadminuser/{user_id}", response_model=TestAdminUser)
 #user_idはクエリパラメータではなくパス。そのためQueryではなくPathを使って型定義する。

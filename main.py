@@ -784,3 +784,36 @@ async def check_origin(origin: Annotated[str, Header()]):
                                                        response_model=dict[str, str])
 async def get_valid_member():
     return {"username": "validuser"}
+
+class TestAdminUser(BaseModel):
+    name: str
+    description: str
+
+sample_user_database = {
+    "admin": {
+        "name": "Mike",
+        "description": "Test administrator" 
+    }
+}
+
+class AdminError(Exception):
+    pass
+
+def get_test_admin_username() -> str:
+    try:
+        yield "Mike"
+    except AdminError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
+                            detail=f"Invalid user:{err}")
+    
+@brest_service.get(APP_ROOT + "testadminuser/{user_id}", response_model=TestAdminUser)
+#user_idはクエリパラメータではなくパス。そのためQueryではなくPathを使って型定義する。
+async def get_test_admin_user(user_id: Annotated[str, Path(example="admin")], 
+                              username: Annotated[str, Depends(get_test_admin_username)]):
+    if user_id not in sample_user_database:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
+                            detail=f"Not found user_id:{user_id}")
+    user = sample_user_database[user_id]
+    if user["name"] != username:
+        raise AdminError(username)
+    return user 

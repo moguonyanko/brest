@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, PlainTextResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.security import OAuth2PasswordBearer
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from enum import Enum
 import json
@@ -831,3 +832,9 @@ async def get_test_admin_user(user_id: Annotated[str, Path(example="admin")],
     if user["name"] != username:
         raise AdminError(username)
     return user 
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+@brest_service.post(APP_ROOT + "testtoken/", response_model=dict[str, str])
+async def create_test_token(token: Annotated[str, Depends(oauth2_scheme)]):
+    return {"token": token}

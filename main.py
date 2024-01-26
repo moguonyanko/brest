@@ -838,3 +838,19 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 @brest_service.post(APP_ROOT + "testtoken/", response_model=dict[str, str])
 async def create_test_token(token: Annotated[str, Depends(oauth2_scheme)]):
     return {"token": token}
+
+class AuthUser(BaseModel):
+    name: str
+    email: EmailStr | None = None
+    disabled: bool
+
+def fake_decode_user(token) -> AuthUser:
+    return AuthUser(name=f"{token}_decoded", email="sample@sample.mail.com")
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> AuthUser:
+    user = fake_decode_user(token)
+    return user
+
+@brest_service.get(APP_ROOT + "authusers/me", response_model=AuthUser)
+async def read_authuser_me(current_user: Annotated[AuthUser, Depends(get_current_user)]):
+    return current_user

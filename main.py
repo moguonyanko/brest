@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, PlainTextResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from enum import Enum
 import json
@@ -839,18 +839,79 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 async def create_test_token(token: Annotated[str, Depends(oauth2_scheme)]):
     return {"token": token}
 
+fake_auth_user_db = {
+    "mike": {
+        "name": "Mike",
+        "email": "m-mike@sample.co.jp",
+        "hashedpassword": "samplepass1",
+        "disabled": False
+    },
+    "joe": {
+        "name": "Joe",
+        "email": "joe-poo@test.co.jp",
+        "hashedpassword": "samplepass2",
+        "disabled": True
+    },
+    "moguo": {
+        "name": "Moguo",
+        "email": "moguo@mymail.co.jp",
+        "hashedpassword": "testpass",
+        "disabled": False
+    }
+}
+
+def fake_hashed_password(password: str) -> str:
+    return f"fakehashed_{password}"
+
 class AuthUser(BaseModel):
-    name: str
+    name: str = ""
     email: EmailStr | None = None
-    disabled: bool
+    disabled: bool = False
+    invalid: bool = False
+
+#こういう継承はあまり好ましくない。
+class AuthUserInDB(AuthUser):
+    hashedpassword: str
+
+def lookup_auth_user(db, token: str) -> AuthUser:
+    if token in db:
+        user_dict = db[token]
+        return AuthUser(**user_dict)
+    return AuthUser(invalid=True)
 
 def fake_decode_user(token) -> AuthUser:
-    return AuthUser(name=f"{token}_decoded", email="sample@sample.mail.com")
+    return lookup_auth_user(fake_auth_user_db, token)
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> AuthUser:
     user = fake_decode_user(token)
+    if user.invalid:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="不正なユーザーです",
+                            headers={"WWW-Authenticate": "Bearer"})
     return user
 
-@brest_service.get(APP_ROOT + "authusers/me", response_model=AuthUser)
-async def read_authuser_me(current_user: Annotated[AuthUser, Depends(get_current_user)]):
+async def get_current_active_user(current_user: Annotated[AuthUser, Depends(get_current_user)]) -> AuthUser:
+    if current_user.disabled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="無効なユーザーです")
     return current_user
+
+@brest_service.get(APP_ROOT + "authusers/me", response_model=AuthUser)
+async def read_authuser_me(current_user: Annotated[AuthUser, Depends(get_current_active_user)]):
+    return current_user
+
+@brest_service.post(APP_ROOT + "token", response_model=dict[str, str])
+async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    user_dict = fake_auth_user_db.get(form_data.username)
+    if not user_dict:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="入力に誤りがあります")
+    auth_user = AuthUserInDB(**user_dict)
+    hashedpassword = fake_hashed_password(form_data.password)
+    if hashedpassword != auth_user.hashedpassword:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="入力に誤りがあります")
+    return {
+        "access_token": auth_user.name, "token_type": "bearer"
+    }
+

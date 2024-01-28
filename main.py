@@ -841,21 +841,21 @@ async def create_test_token(token: Annotated[str, Depends(oauth2_scheme)]):
 
 fake_auth_user_db = {
     "mike": {
-        "name": "Mike",
+        "name": "mike",
         "email": "m-mike@sample.co.jp",
-        "hashedpassword": "samplepass1",
+        "hashedpassword": "fakehashed_testpass1",
         "disabled": False
     },
     "joe": {
-        "name": "Joe",
+        "name": "joe",
         "email": "joe-poo@test.co.jp",
-        "hashedpassword": "samplepass2",
+        "hashedpassword": "fakehashed_testpass2",
         "disabled": True
     },
     "moguo": {
-        "name": "Moguo",
+        "name": "moguo",
         "email": "moguo@mymail.co.jp",
-        "hashedpassword": "testpass",
+        "hashedpassword": "fakehashed_testpass3",
         "disabled": False
     }
 }

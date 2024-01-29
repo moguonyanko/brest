@@ -848,23 +848,12 @@ async def create_test_token(token: Annotated[str, Depends(oauth2_scheme)]):
     return {"token": token}
 
 fake_auth_user_db = {
-    "mike": {
-        "name": "mike",
-        "email": "m-mike@sample.co.jp",
-        "hashedpassword": "fakehashed_testpass1",
-        "disabled": False
-    },
-    "joe": {
-        "name": "joe",
-        "email": "joe-poo@test.co.jp",
-        "hashedpassword": "fakehashed_testpass2",
-        "disabled": True
-    },
-    "moguo": {
-        "name": "moguo",
-        "email": "moguo@mymail.co.jp",
-        "hashedpassword": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
-        "disabled": False
+    "johndoe": {
+        "username": "johndoe",
+        "full_name": "John Doe",
+        "email": "johndoe@example.com",
+        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
+        "disabled": False,
     }
 }
 
@@ -887,14 +876,15 @@ def fake_hashed_password(password: str) -> str:
     return f"fakehashed_{password}"
 
 class AuthUser(BaseModel):
-    name: str = ""
+    username: str = ""
+    full_name: str = ""
     email: EmailStr | None = None
     disabled: bool = False
     invalid: bool = False
 
 #こういう継承はあまり好ましくない。
 class AuthUserInDB(AuthUser):
-    hashedpassword: str
+    hashed_password: str
 
 def lookup_auth_user(db, token: str) -> AuthUser:
     if token in db:
@@ -932,7 +922,7 @@ def authenticate_user(db: dict[str, Any], username: str, password: str) -> bool:
     user = lookup_auth_user(db, username)
     if not user:
         return False
-    elif not verify_password(password, user.hashedpassword):
+    elif not verify_password(password, user.hashed_password):
         return False
     else:
         return True
@@ -968,7 +958,7 @@ async def get_authuser_items(current_user: Annotated[AuthUser, Depends(get_curre
     return [
         {
             "name": "Banana",
-            "owner": current_user.name
+            "owner": current_user.username
         }
     ]
 

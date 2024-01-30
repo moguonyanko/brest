@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field, HttpUrl, EmailStr
 from uuid import UUID
 from datetime import datetime, time, timedelta, timezone
 import os
+import time as processtime #datetimeのtimeオブジェクトと衝突するので別名を付ける。
 
 def report_brest_service():
     print(f"REQUEST:{datetime.now()}")
@@ -962,3 +963,10 @@ async def get_authuser_items(current_user: Annotated[AuthUser, Depends(get_curre
         }
     ]
 
+@brest_service.middleware("http")
+async def set_process_time_header(request: Request, next_func):
+    start_time = processtime.time()
+    response = await next_func(request)
+    process_time = processtime.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time) #文字列でないとエラー
+    return response

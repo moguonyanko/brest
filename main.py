@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -25,6 +26,24 @@ def report_brest_service():
     print(f"REQUEST:{datetime.now()}")
 
 brest_service = FastAPI(dependencies=[Depends(report_brest_service)])
+
+'''
+ここに含まれないオリジンからのリクエストに対するレスポンスヘッダにはaccess-control-allow-originが付与されない。
+'''
+origins = [
+    "https://localhost",
+    "http://localhost:8080",
+    "https://myhost",
+    "http://myhost:8000"
+]
+
+brest_service.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"] #本来は全てのヘッダを認めるべきではない。
+)
 
 APP_ROOT = "/brest/"
 

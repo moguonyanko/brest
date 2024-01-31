@@ -2,7 +2,7 @@
 参考:
 https://fastapi.tiangolo.com/ja/tutorial/
 '''
-from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status
+from fastapi import FastAPI, Query, Path, Body, Cookie, Header, Response, status, BackgroundTasks
 from fastapi import Form, File, UploadFile, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse, RedirectResponse, PlainTextResponse
 from fastapi.exceptions import RequestValidationError
@@ -21,9 +21,10 @@ from uuid import UUID
 from datetime import datetime, time, timedelta, timezone
 import os
 import time as processtime #datetimeのtimeオブジェクトと衝突するので別名を付ける。
-from sqlalchemy.orm import Session
-from . import crud, models, schemas
-from .database import SessionLocal, engine
+#TODO: エラーになるので一旦コメントアウトする。
+# from sqlalchemy.orm import Session
+# from . import crud, models, schemas
+# from .database import SessionLocal, engine
 
 def report_brest_service():
     print(f"REQUEST:{datetime.now()}")
@@ -997,47 +998,72 @@ async def set_process_time_header(request: Request, next_func):
 参考:
 https://fastapi.tiangolo.com/tutorial/sql-databases/#main-fastapi-app
 '''
-models.Base.metadata.create_all(bind=engine)
+# models.Base.metadata.create_all(bind=engine)
 
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@brest_service.post("/dbusers/", response_model=schemas.User)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = crud.get_user_by_email(db, email=user.email)
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    return crud.create_user(db=db, user=user)
+# # Dependency
+# def get_db():
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
 
-@brest_service.get("/dbusers/", response_model=list[schemas.User])
-def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    users = crud.get_users(db, skip=skip, limit=limit)
-    return users
+# @brest_service.post(APP_ROOT + "dbusers/", response_model=schemas.User)
+# def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+#     db_user = crud.get_user_by_email(db, email=user.email)
+#     if db_user:
+#         raise HTTPException(status_code=400, detail="Email already registered")
+#     return crud.create_user(db=db, user=user)
 
 
-@brest_service.get("/dbusers/{user_id}", response_model=schemas.User)
-def read_user(user_id: int, db: Session = Depends(get_db)):
-    db_user = crud.get_user(db, user_id=user_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return db_user
+# @brest_service.get(APP_ROOT + "dbusers/", response_model=list[schemas.User])
+# def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+#     users = crud.get_users(db, skip=skip, limit=limit)
+#     return users
 
 
-@brest_service.post("/dbusers/{user_id}/items/", response_model=schemas.Item)
-def create_item_for_user(
-    user_id: int, item: schemas.ItemCreate, db: Session = Depends(get_db)
-):
-    return crud.create_user_item(db=db, item=item, user_id=user_id)
+# @brest_service.get(APP_ROOT + "dbusers/{user_id}", response_model=schemas.User)
+# def read_user(user_id: int, db: Session = Depends(get_db)):
+#     db_user = crud.get_user(db, user_id=user_id)
+#     if db_user is None:
+#         raise HTTPException(status_code=404, detail="User not found")
+#     return db_user
 
 
-@brest_service.get("/dbitems/", response_model=list[schemas.Item])
-def read_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    items = crud.get_items(db, skip=skip, limit=limit)
-    return items
+# @brest_service.post(APP_ROOT + "dbusers/{user_id}/items/", response_model=schemas.Item)
+# def create_item_for_user(
+#     user_id: int, item: schemas.ItemCreate, db: Session = Depends(get_db)
+# ):
+#     return crud.create_user_item(db=db, item=item, user_id=user_id)
+
+
+# @brest_service.get(APP_ROOT + "dbitems/", response_model=list[schemas.Item])
+# def read_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+#     items = crud.get_items(db, skip=skip, limit=limit)
+#     return items
+
+def print_log(text: str):
+    print(f"MYLOG:{text}")
+
+'''
+middlewareでも同じことはできそうだがログ出力などはBackgroundTasksの方がふさわしそうである。
+'''
+@brest_service.post(APP_ROOT + "testlog/")
+async def get_backgroud_sample(text: str, background_tasks: BackgroundTasks):
+    background_tasks.add_task(print_log, text=text)
+    return {"test": "OK"}
+
+def get_sample_id(background_tasks: BackgroundTasks, sample_id: str):
+    if sample_id: 
+        background_tasks.add_task(print_log, text=sample_id)
+    else: 
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, 
+                            detail="sample_idは必須です。")
+    return sample_id
+
+@brest_service.post(APP_ROOT + "testlogwithdependency/{sample_id}")
+async def get_backgroud_sample(text: str, background_tasks: BackgroundTasks, 
+                               sample_id: Annotated[str, Depends(get_sample_id)]):
+    background_tasks.add_task(print_log, text=text)
+    return {"sampleId": sample_id}

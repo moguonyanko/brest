@@ -1093,3 +1093,32 @@ async def get_backgroud_sample(text: str, background_tasks: BackgroundTasks,
                                sample_id: Annotated[str, Depends(get_sample_id)]):
     background_tasks.add_task(print_log, text=text)
     return {"sampleId": sample_id}
+
+fake_greeting_db = {
+    "em": {
+        "greeting": "Hello"
+    },
+    "ja": {
+        "greeting": "こんにちは"
+    }
+}
+
+class Greeting(BaseModel):
+    lang: str
+    greeting: str
+
+@brest_service.get(APP_ROOT + "greeting/{lang}", response_model=dict[str, str])
+async def get_greeting(lang: str = ""):
+    if lang in fake_greeting_db:
+        return fake_greeting_db.get(lang)
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"存在しない言語 {lang} です")
+
+@brest_service.post(APP_ROOT + "greeting/", response_model=Greeting)
+async def register_greeting(greeting: Greeting, x_token: Annotated[str, Header()]):
+    if x_token != "langtoken":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="不正な更新リクエストです")
+    fake_greeting_db.update({greeting.lang: {
+        "greeting": greeting.greeting
+    }})
+    return greeting

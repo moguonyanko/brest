@@ -29,7 +29,29 @@ import time as processtime #datetimeのtimeオブジェクトと衝突するの�
 def report_brest_service():
     print(f"REQUEST:{datetime.now()}")
 
-brest_service = FastAPI(dependencies=[Depends(report_brest_service)])
+tags_metadata = [
+    {
+        "name": "users",
+        "description": "サンプルアプリのユーザー",
+    },
+    {
+        "name": "items",
+        "description": "サンプルアプリのアイテム",
+        "externalDocs": {
+            "description": "Items external docs",
+            "url": "https://fastapi.tiangolo.com/",
+        },
+    }
+]
+
+brest_service = FastAPI(
+    title="FastAPI Example API",
+    description="FastAPIの使い方を学ぶためのサンプルAPIをまとめています。",
+    summary="FastAPIサンプル集",
+    version="0.9.0",
+    terms_of_service="https://localhost/brest/",
+    openapi_tags=tags_metadata,
+    dependencies=[Depends(report_brest_service)])
 
 '''
 ここに含まれないオリジンからのリクエストに対するレスポンスヘッダにはaccess-control-allow-originが付与されない。
@@ -150,7 +172,7 @@ sample_items: [MyItem] = [
 Unionでオプションパラメータを定義できる。Union[str, None]の場合はstrのパラメータが指定されればそれを使い
 パラメータが指定されなければNoneになる。
 '''
-@brest_service.get(APP_ROOT + "items/")
+@brest_service.get(APP_ROOT + "items/", tags=["items"])
 async def read_item(start: int = 0, end: int = len(sample_items),
                     description: Union[str, None] = None,
                     nameonly: bool = False):
@@ -181,7 +203,7 @@ sample_users = {
 }
 
 # デフォルト値を指定していないパラメータは必須パラメータとなる。
-@brest_service.get(APP_ROOT + "groups/{group_name}/users/{user_name}")
+@brest_service.get(APP_ROOT + "groups/{group_name}/users/{user_name}", tags=["users"])
 async def get_user(group_name: str, user_name: str, score: Union[int, None] = None):
     user = sample_users.get(group_name).get(user_name)
     if user == None or score and user.get("score") < score:

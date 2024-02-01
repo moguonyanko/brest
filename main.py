@@ -10,6 +10,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -52,6 +53,9 @@ brest_service = FastAPI(
     terms_of_service="https://localhost/brest/",
     openapi_tags=tags_metadata,
     dependencies=[Depends(report_brest_service)])
+
+#staticディレクトリ以下に静的ファイルを配置する。ディレクトリが存在しないとエラーになる。
+brest_service.mount("/static", StaticFiles(directory="static"), name="static")
 
 '''
 ここに含まれないオリジンからのリクエストに対するレスポンスヘッダにはaccess-control-allow-originが付与されない。

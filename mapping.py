@@ -11,6 +11,12 @@ app = FastAPI(
     version="0.0.1"
 )
 
-@app.get("/ping/", tags=["test"])
+@app.get("/hello/", tags=["test"])
 async def request_ping():
-    return { "message": "pong" }
+    return { "message": "Hello My Mapping API!" }
+
+#GeoJSONの形式でリクエストしたいのでPOSTにしている。
+@app.post("/pointsidewithline/", tags=["geometry"])
+async def get_point_side_with_line(line: dict, point: dict):
+    return { "message": "Implement now" }
+

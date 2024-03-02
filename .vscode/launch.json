@@ -17,12 +17,12 @@
       "justMyCode": true
     },
     {
-      "name": "FastAPI: My Mapping Debugging",
+      "name": "FastAPI: My GIS Debugging",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
       "args": [
-        "mapping:app",
+        "mygis:app",
         "--reload"
       ],
       "jinja": true,

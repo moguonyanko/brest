@@ -5,24 +5,26 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "FastAPI: Brest Debugging",
-      "type": "python",
+      "name": "FastAPI: Brest GIS Debugging",
+      "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
       "args": [
-        "main:brest_service",
-        "--reload"
+        "gis:app",
+        "--reload",
+        "--port",
+        "9000"
       ],
       "jinja": true,
       "justMyCode": true
     },
     {
-      "name": "FastAPI: My GIS Debugging",
+      "name": "FastAPI: Brest Examples Debugging",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
       "args": [
-        "mygis:app",
+        "main:brest_service",
         "--reload"
       ],
       "jinja": true,

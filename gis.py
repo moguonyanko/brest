@@ -1,13 +1,15 @@
 from fastapi import FastAPI
 
 app = FastAPI(
-    title="My GIS API",
+    title="Brest GIS API",
     description="GISの計算機能をREST APIで提供する。",
-    summary="GIS REST API",
+    summary="Brest GIS API by REST",
     version="0.0.1"
 )
 
 def get_coordinates(feature, index: int = 0) -> list:
+    if len(feature) == 0:
+        return []
     if "geometry" in feature:
         return feature["geometry"]["coordinates"]
     else:
@@ -20,6 +22,6 @@ async def get_point_side_of_line(line: dict, point: dict):
     point_coordinates = get_coordinates(point)
     return {"line_coordinates": line_coordinates, "point_coordinates": point_coordinates}
 
-@app.get("/hellomygis/", tags=["test"])
+@app.get("/hellogis/", tags=["test"])
 async def request_ping():
-    return { "message": "Hello My GIS!" }
+    return { "message": "Hello Brest GIS!" }

@@ -77,7 +77,7 @@ async def get_point_side_of_line(line: dict, point: dict):
         return {"side": side}
 
 @app.post("/linecrosscheck/", tags=["geometry"])
-async def get_point_side_of_line(line1: dict, line2: dict):
+async def check_cross_lines(line1: dict, line2: dict):
     return {"result": 0}
 
 @app.get("/hellogis/", tags=["test"])

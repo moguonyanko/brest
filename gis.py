@@ -76,6 +76,10 @@ async def get_point_side_of_line(line: dict, point: dict):
         side = point_on_which_side(px, py, lx1, ly1, lx2, ly2)
         return {"side": side}
 
+@app.post("/linecrosscheck/", tags=["geometry"])
+async def get_point_side_of_line(line1: dict, line2: dict):
+    return {"result": 0}
+
 @app.get("/hellogis/", tags=["test"])
 async def request_ping():
     return { "message": "Hello Brest GIS!" }

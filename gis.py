@@ -8,6 +8,10 @@ app = FastAPI(
     version="0.0.1"
 )
 
+@app.get("/hellogis/", tags=["test"])
+async def get_hellogis():
+    return { "message": "Hello Brest GIS!" }
+
 def get_coordinates(feature, index: int = 0) -> list:
     if len(feature) == 0:
         return []
@@ -79,7 +83,3 @@ async def get_point_side_of_line(line: dict, point: dict):
 @app.post("/linecrosscheck/", tags=["geometry"])
 async def check_cross_lines(line1: dict, line2: dict):
     return {"result": 0}
-
-@app.get("/hellogis/", tags=["test"])
-async def request_ping():
-    return { "message": "Hello Brest GIS!" }

@@ -146,3 +146,43 @@ async def check_cross_lines(line1: dict, line2: dict):
     }
 
     return response
+
+@app.post("/convexhull/", tags=["geometry"])
+async def calc_convex_hull(multipoint: dict):
+    sampleJson = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "coordinates": [
+                        [
+                            [
+                                139.75154247322763,
+                                35.6609546545163
+                            ],
+                            [
+                                139.75240856984703,
+                                35.65460655860309
+                            ],
+                            [
+                                139.76083496820303,
+                                35.65570614945459
+                            ],
+                            [
+                                139.7610154049991,
+                                35.660734752009716
+                            ],
+                            [
+                                139.75154247322763,
+                                35.6609546545163
+                            ]
+                        ]
+                    ],
+                    "type": "Polygon"
+                }
+            }
+        ]
+    }
+    return {"result": sampleJson}

@@ -1,6 +1,8 @@
 from typing import Union, Tuple
 from fastapi import FastAPI, HTTPException, status
 
+from shapely.geometry import LineString
+
 app = FastAPI(
     title="Brest GIS API",
     description="GISの計算機能をREST APIで提供する。現時点では2次元のみの対応とする。",
@@ -129,14 +131,18 @@ def is_in_range(line: Line, point: Point):
     return min(x1, x2) <= x <= max(x1, x2) and min(y1, y2) <= y <= max(y1, y2)
 
 def is_parallel_or_overlap(line1: Line, line2: Line):
-    vec1 = line1.get_vector()
-    vec2 = line2.get_vector()
-    z_cross = cross_product_z(vec1, vec2)
-    
-    if z_cross == 0:
-        return False    
     pass
 
-@app.post("/linecrosscheck/", tags=["geometry"])
+@app.post("/linecrosscheck/", tags=["geometry"], response_model=dict[str, bool])
 async def check_cross_lines(line1: dict, line2: dict):
-    return {"result": 0}
+    lps1 = get_coordinates(line1)
+    lps2 = get_coordinates(line2)
+
+    line1 = LineString(lps1)
+    line2 = LineString(lps2)
+
+    response = {
+        "result": line1.intersects(line2)
+    }
+
+    return response

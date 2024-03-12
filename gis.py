@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException, status
 
 app = FastAPI(
     title="Brest GIS API",
-    description="GISの計算機能をREST APIで提供する。",
+    description="GISの計算機能をREST APIで提供する。現時点では2次元のみの対応とする。",
     summary="Brest GIS API by REST",
     version="0.0.1"
 )
@@ -79,6 +79,63 @@ async def get_point_side_of_line(line: dict, point: dict):
     else:
         side = point_on_which_side(px, py, lx1, ly1, lx2, ly2)
         return {"side": side}
+    
+class Vector():
+    def __init__(self, x = 0, y = 0, z = 0):
+        self.x = x
+        self.y = y
+        self.z = z
+
+def cross_product_z(vec1: Vector, vec2: Vector):
+    return vec1.x * vec2.y - vec1.y * vec2.x
+
+#可読性のためVectorとはとりあえず分けて定義している。
+class Point:
+    def __init__(self, x = 0, y = 0):
+        self.x = x
+        self.y = y
+
+    def __iter__(self):
+        return iter((self.x, self.y))
+        # yield self.x
+        # yield self.y
+
+class Line:
+    def __init__(self, x1, y1, x2, y2):
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+    
+    def __iter__(self):
+        return iter((self.x1, self.y, self.x2, self.y2))
+        # yield self.x1
+        # yield self.y1
+        # yield self.x2
+        # yield self.y2
+
+    def get_vector(self) -> Vector:
+        return Vector(self.x2 - self.x1, self.y2 - self.y1)
+
+def is_in_range(line: Line, point: Point):
+    # x1, y1, x2, y2 = *line
+    # x, y = *point
+    x1 = line.x1
+    y1 = line.y1
+    x2 = line.x2
+    y2 = line.y2
+    x = point.x
+    y = point.y
+    return min(x1, x2) <= x <= max(x1, x2) and min(y1, y2) <= y <= max(y1, y2)
+
+def is_parallel_or_overlap(line1: Line, line2: Line):
+    vec1 = line1.get_vector()
+    vec2 = line2.get_vector()
+    z_cross = cross_product_z(vec1, vec2)
+    
+    if z_cross == 0:
+        return False    
+    pass
 
 @app.post("/linecrosscheck/", tags=["geometry"])
 async def check_cross_lines(line1: dict, line2: dict):

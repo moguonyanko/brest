@@ -1,6 +1,9 @@
 from typing import Union, Tuple
+import json
+
 from fastapi import FastAPI, HTTPException, status
 
+from shapely import from_geojson, to_geojson, convex_hull
 from shapely.geometry import LineString
 
 app = FastAPI(
@@ -149,40 +152,8 @@ async def check_cross_lines(line1: dict, line2: dict):
 
 @app.post("/convexhull/", tags=["geometry"])
 async def calc_convex_hull(multipoint: dict):
-    sampleJson = {
-        "type": "FeatureCollection",
-        "features": [
-            {
-                "type": "Feature",
-                "properties": {},
-                "geometry": {
-                    "coordinates": [
-                        [
-                            [
-                                139.75154247322763,
-                                35.6609546545163
-                            ],
-                            [
-                                139.75240856984703,
-                                35.65460655860309
-                            ],
-                            [
-                                139.76083496820303,
-                                35.65570614945459
-                            ],
-                            [
-                                139.7610154049991,
-                                35.660734752009716
-                            ],
-                            [
-                                139.75154247322763,
-                                35.6609546545163
-                            ]
-                        ]
-                    ],
-                    "type": "Polygon"
-                }
-            }
-        ]
-    }
-    return {"result": sampleJson}
+    geom = multipoint["features"][0]["geometry"]
+    mp = from_geojson(json.dumps(geom))
+    polygon = convex_hull(mp)
+    #json.loadsを介さないとブラウザ側でJSON.parseを行う必要が生じる。
+    return {"result": json.loads(to_geojson(polygon))}

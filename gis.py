@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException, status
 
 from shapely import from_geojson, to_geojson, convex_hull
 from shapely.geometry import LineString
+from shapely.ops import triangulate
 
 app = FastAPI(
     title="Brest GIS API",
@@ -157,3 +158,12 @@ async def calc_convex_hull(multipoint: dict):
     polygon = convex_hull(mp)
     #json.loadsを介さないとブラウザ側でJSON.parseを行う必要が生じる。
     return {"result": json.loads(to_geojson(polygon))}
+
+@app.post("/trianglation/", tags=["geometry"])
+async def calc_trianglation(geom: dict):
+    g = geom["features"][0]["geometry"]
+    primitive = from_geojson(json.dumps(g))
+    result = triangulate(primitive)
+    geojsons = to_geojson(result)
+    result = list(map(lambda geojson: json.loads(geojson), geojsons))
+    return {"result": result}

@@ -159,11 +159,11 @@ async def calc_convex_hull(multipoint: dict):
     #json.loadsを介さないとブラウザ側でJSON.parseを行う必要が生じる。
     return {"result": json.loads(to_geojson(polygon))}
 
-@app.post("/trianglation/", tags=["geometry"])
+@app.post("/triangulation/", tags=["geometry"])
 async def calc_trianglation(geom: dict):
     g = geom["features"][0]["geometry"]
     primitive = from_geojson(json.dumps(g))
     result = triangulate(primitive)
     geojsons = to_geojson(result)
-    result = list(map(lambda geojson: json.loads(geojson), geojsons))
+    result = [json.loads(geojson) for geojson in geojsons]
     return {"result": result}

@@ -1,4 +1,4 @@
-from typing import Union, Tuple
+from typing import Union
 import json
 
 from fastapi import FastAPI, HTTPException, status
@@ -161,9 +161,13 @@ async def calc_convex_hull(multipoint: dict):
 
 @app.post("/triangulation/", tags=["geometry"])
 async def calc_trianglation(geom: dict):
+    response = {"result": {}}
+    if len(geom["features"]) == 0:
+        return response
     g = geom["features"][0]["geometry"]
     primitive = from_geojson(json.dumps(g))
     result = triangulate(primitive)
     geojsons = to_geojson(result)
     result = [json.loads(geojson) for geojson in geojsons]
-    return {"result": result}
+    response["result"] = result
+    return response

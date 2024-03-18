@@ -1,10 +1,10 @@
 from typing import Union
 import json
+import math
 
 from fastapi import FastAPI, HTTPException, status
 
-from shapely import from_geojson, to_geojson, convex_hull
-from shapely.geometry import LineString
+from shapely import *
 from shapely.ops import triangulate
 
 app = FastAPI(
@@ -171,3 +171,24 @@ async def calc_trianglation(geom: dict):
     result = [json.loads(geojson) for geojson in geojsons]
     response["result"] = result
     return response
+
+@app.post("/minimumboundingcircle/", tags=["geometry"])
+async def calc_minimum_bounding_circle(geojson: dict):
+    points = [from_geojson(json.dumps(feature["geometry"])) 
+              for feature in geojson["features"]]
+    mp = MultiPoint(points)
+
+    #凸包を使って求める場合
+    # ch = convex_hull(mp)
+    # circle = minimum_bounding_circle(ch)
+
+    #最小回転矩形を使って求める場合
+    rotated_rectangle = oriented_envelope(mp)
+    center = rotated_rectangle.centroid
+    bounds = rotated_rectangle.bounds
+    width = bounds[2] - bounds[0]
+    height = bounds[3] - bounds[1]
+    radius = math.sqrt((width / 2) ** 2 + (height / 2) ** 2)
+    circle = buffer(center, radius)
+
+    return {"result": json.loads(to_geojson(circle))}

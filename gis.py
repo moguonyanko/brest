@@ -192,3 +192,25 @@ async def calc_minimum_bounding_circle(geojson: dict):
     circle = buffer(center, radius)
 
     return {"result": json.loads(to_geojson(circle))}
+
+def get_geometris_from_geojson(geojson: dict):
+    return [from_geojson(json.dumps(feature["geometry"])) 
+            for feature in geojson["features"]]   
+
+def get_geojson_from_geometry(geometry):
+     return json.loads(to_geojson(geometry))
+
+@app.post("/contains/", tags=["geometry"])
+async def calc_contains(area_geojson: dict, target_geojson: dict):
+    areas = get_geometris_from_geojson(area_geojson)
+    targets = get_geometris_from_geojson(target_geojson)
+
+    result = {}
+
+    for index, area in enumerate(areas):
+        result[index] = []
+        for target in targets:            
+            if contains(area, target):
+                result[index].append(get_geojson_from_geometry(target))
+
+    return { "result": result }

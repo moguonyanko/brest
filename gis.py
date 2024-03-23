@@ -5,7 +5,7 @@ import math
 from fastapi import FastAPI, HTTPException, status
 
 from shapely import *
-from shapely.ops import triangulate
+from shapely.ops import triangulate, voronoi_diagram
 
 app = FastAPI(
     title="Brest GIS API",
@@ -214,3 +214,11 @@ async def calc_contains(area_geojson: dict, target_geojson: dict):
                 result[index].append(get_geojson_from_geometry(target))
 
     return { "result": result }
+
+@app.post("/voronoidiagram/", tags=["geometry"])
+async def calc_voronoi_diagram(points: dict):
+    ps = get_geometris_from_geojson(points)
+    mp = MultiPoint(ps)
+    result = voronoi_diagram(mp)
+
+    return { "result": get_geojson_from_geometry(result) }

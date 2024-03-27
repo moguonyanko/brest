@@ -5,7 +5,7 @@ import math
 from fastapi import FastAPI, HTTPException, status
 
 from shapely import *
-from shapely.ops import triangulate, voronoi_diagram
+from shapely.ops import triangulate, voronoi_diagram, split
 
 app = FastAPI(
     title="Brest GIS API",
@@ -220,5 +220,16 @@ async def calc_voronoi_diagram(points: dict):
     ps = get_geometris_from_geojson(points)
     mp = MultiPoint(ps)
     result = voronoi_diagram(mp)
+
+    return { "result": get_geojson_from_geometry(result) }
+
+@app.post("/splitpolygon/", tags=["geometry"])
+async def split_polygon_by_line(polygon: dict, line: dict):
+    polygon_geom = get_geometris_from_geojson(polygon)
+    line_geom = get_geometris_from_geojson(line)
+    tmp = polygon_geom[0]
+    for splitter in line_geom:
+        tmp = MultiPolygon(split(tmp, splitter)) #分割のためだけにMultiPolygonにする。
+    result = GeometryCollection(tmp.geoms)
 
     return { "result": get_geojson_from_geometry(result) }

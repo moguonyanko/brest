@@ -225,6 +225,8 @@ async def calc_voronoi_diagram(points: dict):
 
 @app.post("/splitpolygon/", tags=["geometry"])
 async def split_polygon_by_line(polygon: dict, line: dict):
+    if len(polygon) == 0 or len(line) == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid geometry")
     polygon_geom = get_geometris_from_geojson(polygon)
     line_geom = get_geometris_from_geojson(line)
     tmp = polygon_geom[0]

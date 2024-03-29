@@ -1,11 +1,12 @@
 from typing import Union
 import json
 import math
+from itertools import chain
 
 from fastapi import FastAPI, HTTPException, status
 
 from shapely import *
-from shapely.ops import triangulate, voronoi_diagram, split
+from shapely.ops import triangulate, voronoi_diagram, split, nearest_points
 
 app = FastAPI(
     title="Brest GIS API",
@@ -234,4 +235,13 @@ async def split_polygon_by_line(polygon: dict, line: dict):
         tmp = MultiPolygon(split(tmp, splitter)) #分割のためだけにMultiPolygonにする。
     result = GeometryCollection(tmp.geoms)
 
+    return { "result": get_geojson_from_geometry(result) }
+
+@app.post("/nearestpoint/", tags=["geometry"])
+async def get_nearest_point(points: dict, line: dict):
+    points_geom = get_geometris_from_geojson(points)
+    line_geom = get_geometris_from_geojson(line)
+    result = nearest_points(line_geom, MultiPoint(points_geom))
+
+    #TODO:近傍点が正しく算出できていない。
     return { "result": get_geojson_from_geometry(result) }

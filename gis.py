@@ -242,6 +242,6 @@ async def get_nearest_point(points: dict, line: dict):
     points_geom = get_geometris_from_geojson(points)
     line_geom = get_geometris_from_geojson(line)
     result = nearest_points(line_geom, MultiPoint(points_geom))
+    points = [p[0] for p in result] #resultが入れ子の配列になっている理由は不明
 
-    #TODO:近傍点が正しく算出できていない。
-    return { "result": get_geojson_from_geometry(result) }
+    return { "result": get_geojson_from_geometry(GeometryCollection(points)) }

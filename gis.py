@@ -1,12 +1,12 @@
 from typing import Union
 import json
 import math
-from itertools import chain
-
-from fastapi import FastAPI, HTTPException, status
-
-from shapely import *
+from typing import Union, Annotated, Any
+from fastapi import FastAPI, HTTPException, status, Body
+from shapely import from_geojson, to_geojson, oriented_envelope, buffer, contains, convex_hull
+from shapely import Polygon, LineString, MultiPoint, GeometryCollection, MultiPolygon
 from shapely.ops import triangulate, voronoi_diagram, split, nearest_points
+from pyproj import Proj, transform
 
 app = FastAPI(
     title="Brest GIS API",
@@ -245,3 +245,14 @@ async def get_nearest_point(points: dict, line: dict):
     points = [p[0] for p in result] #resultが入れ子の配列になっている理由は不明
 
     return { "result": get_geojson_from_geometry(GeometryCollection(points)) }
+
+# float型はBodyを使わないとリクエストボディのデータとFastAPIから認識されない。
+@app.post("/buffernearpoints/", tags=["geometry"])
+async def get_buffer_near_points(points: dict, line: dict, distance: Annotated[float, Body()]):
+    points_geom = get_geometris_from_geojson(points)
+    line_geom = get_geometris_from_geojson(line)
+    buffered_line = buffer(line_geom, distance)
+    result = [point_geom for point_geom in points_geom 
+              if contains(buffered_line, point_geom)]
+
+    return { "result": get_geojson_from_geometry(GeometryCollection(result)) }

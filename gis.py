@@ -1,4 +1,3 @@
-from typing import Union
 import json
 import math
 from typing import Union, Annotated, Any
@@ -252,8 +251,8 @@ async def get_buffer_near_points(points: dict, line: dict, distance: Annotated[f
     points_geom = get_geometris_from_geojson(points)
     line_geom = get_geometris_from_geojson(line)
     buffered_line = buffer(line_geom, distance)
-    result = [point_geom for point_geom in points_geom 
-              if contains(buffered_line, point_geom)] #intersectsの方が適切ではないか？
+    # filterはイテレータを生成するのでlistを適用してリストに変換する。
+    result = list(filter(lambda p: p.intersects(buffered_line), points_geom))
 
     return { 
         "result": get_geojson_from_geometry(GeometryCollection(result)),

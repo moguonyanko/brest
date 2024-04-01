@@ -253,6 +253,9 @@ async def get_buffer_near_points(points: dict, line: dict, distance: Annotated[f
     line_geom = get_geometris_from_geojson(line)
     buffered_line = buffer(line_geom, distance)
     result = [point_geom for point_geom in points_geom 
-              if contains(buffered_line, point_geom)]
+              if contains(buffered_line, point_geom)] #intersectsの方が適切ではないか？
 
-    return { "result": get_geojson_from_geometry(GeometryCollection(result)) }
+    return { 
+        "result": get_geojson_from_geometry(GeometryCollection(result)),
+        "bufferedLine": get_geojson_from_geometry(buffered_line[0])
+          }

@@ -4,8 +4,9 @@ from typing import Union, Annotated, Any
 from fastapi import FastAPI, HTTPException, status, Body
 from shapely import from_geojson, to_geojson, oriented_envelope, buffer, contains, convex_hull
 from shapely import Polygon, LineString, MultiPoint, GeometryCollection, MultiPolygon
+from shapely import get_x, get_y
 from shapely.ops import triangulate, voronoi_diagram, split, nearest_points
-from pyproj import Proj, transform
+from pyproj import Proj, transform, Transformer
 
 app = FastAPI(
     title="Brest GIS API",
@@ -258,3 +259,21 @@ async def get_buffer_near_points(points: dict, line: dict, distance: Annotated[f
         "result": get_geojson_from_geometry(GeometryCollection(result)),
         "bufferedLine": get_geojson_from_geometry(buffered_line[0])
           }
+
+ESPG = {
+    "jgd2011": 4301,
+    "wgs84": 4326
+}
+
+@app.post("/coordconvert/", tags=["geometry"])
+async def convert_coords(point: dict, fromcrs: Annotated[str, Body()], 
+                         tocrs: Annotated[str, Body()]):
+    point_geom = get_geometris_from_geojson(point)
+    espg_from = ESPG[fromcrs]
+    espg_to = ESPG[tocrs]
+    transformer = Transformer.from_crs(espg_from, espg_to)
+    #TODO: 計算が正しくない。
+    x, y = transformer.transform(get_x(point_geom), get_y(point_geom))
+    result_point = Point(x, y)
+
+    return { "result": get_geojson_from_geometry(result_point) }

@@ -3,7 +3,7 @@ import math
 from typing import Union, Annotated, Any
 from fastapi import FastAPI, HTTPException, status, Body
 from shapely import from_geojson, to_geojson, oriented_envelope, buffer, contains, convex_hull
-from shapely import Polygon, LineString, MultiPoint, GeometryCollection, MultiPolygon
+from shapely import Polygon, LineString, MultiPoint, GeometryCollection, MultiPolygon, Point
 from shapely import get_x, get_y
 from shapely.ops import triangulate, voronoi_diagram, split, nearest_points
 from pyproj import Proj, transform, Transformer
@@ -97,7 +97,7 @@ def cross_product_z(vec1: Vector, vec2: Vector):
     return vec1.x * vec2.y - vec1.y * vec2.x
 
 #可読性のためVectorとはとりあえず分けて定義している。
-class Point:
+class MyPoint:
     def __init__(self, x = 0, y = 0):
         self.x = x
         self.y = y
@@ -124,7 +124,7 @@ class Line:
     def get_vector(self) -> Vector:
         return Vector(self.x2 - self.x1, self.y2 - self.y1)
 
-def is_in_range(line: Line, point: Point):
+def is_in_range(line: Line, point: MyPoint):
     # x1, y1, x2, y2 = *line
     # x, y = *point
     x1 = line.x1
@@ -260,20 +260,14 @@ async def get_buffer_near_points(points: dict, line: dict, distance: Annotated[f
         "bufferedLine": get_geojson_from_geometry(buffered_line[0])
           }
 
-ESPG = {
-    "jgd2011": 4301,
-    "wgs84": 4326
-}
-
 @app.post("/coordconvert/", tags=["geometry"])
-async def convert_coords(point: dict, fromcrs: Annotated[str, Body()], 
-                         tocrs: Annotated[str, Body()]):
+async def convert_coords(point: dict, 
+                         fromepsg: Annotated[str, Body()], toepsg: Annotated[str, Body()]):
     point_geom = get_geometris_from_geojson(point)
-    espg_from = ESPG[fromcrs]
-    espg_to = ESPG[tocrs]
-    transformer = Transformer.from_crs(espg_from, espg_to)
-    #TODO: 計算が正しくない。
-    x, y = transformer.transform(get_x(point_geom), get_y(point_geom))
+    transformer = Transformer.from_crs(f"epsg:{fromepsg}", f"epsg:{toepsg}", always_xy=True)
+    from_x = get_x(point_geom[0])
+    from_y = get_y(point_geom[0])
+    x, y = transformer.transform(from_x, from_y)
     result_point = Point(x, y)
 
     return { "result": get_geojson_from_geometry(result_point) }

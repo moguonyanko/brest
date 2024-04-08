@@ -6,7 +6,7 @@ from shapely import from_geojson, to_geojson, oriented_envelope, buffer, contain
 from shapely import Polygon, LineString, MultiPoint, GeometryCollection, MultiPolygon, Point
 from shapely import get_x, get_y
 from shapely.ops import triangulate, voronoi_diagram, split, nearest_points
-from pyproj import Proj, transform, Transformer
+from pyproj import Proj, transform, Transformer, Geod
 
 app = FastAPI(
     title="Brest GIS API",
@@ -271,3 +271,23 @@ async def convert_coords(point: dict,
     result_point = Point(x, y)
 
     return { "result": get_geojson_from_geometry(result_point) }
+
+@app.post("/distance/", tags=["geometry"])
+async def calc_distance(start: dict, goal: dict):
+    start_geom = get_geometris_from_geojson(start)[0]
+    goal_geom = get_geometris_from_geojson(goal)[0]
+
+    grs80 = Geod(ellps='GRS80')
+    start_lat = get_y(start_geom)
+    start_lng = get_x(start_geom)
+    goal_lat = get_y(goal_geom)
+    goal_lng = get_x(goal_geom)
+
+    azimuth, bkw_azimuth, distance = grs80.inv(start_lng, start_lat, goal_lng, goal_lat) 
+    line = LineString([start_geom, goal_geom])
+    return { 
+        "distance": distance,
+        "azimuth": azimuth,
+        "bkw_azimuth": bkw_azimuth,
+        "line": get_geojson_from_geometry(line) 
+        }

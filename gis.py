@@ -7,6 +7,7 @@ from shapely import Polygon, LineString, MultiPoint, GeometryCollection, MultiPo
 from shapely import get_x, get_y
 from shapely.ops import triangulate, voronoi_diagram, split, nearest_points
 from pyproj import Proj, transform, Transformer, Geod
+from geojsontypes import FeatureCollection, Feature
 
 app = FastAPI(
     title="Brest GIS API",
@@ -198,6 +199,13 @@ def get_geometris_from_geojson(geojson: dict):
     return [from_geojson(json.dumps(feature["geometry"])) 
             for feature in geojson["features"]]   
 
+def get_geometris_from_feature_collection(feature_collection: FeatureCollection):
+    geoms = []
+    for feature in feature_collection.features:
+        geom = from_geojson(json.dumps(feature.geometry))
+        geoms.append(geom)
+    return geoms                        
+
 def get_geojson_from_geometry(geometry):
      return json.loads(to_geojson(geometry))
 
@@ -272,10 +280,10 @@ async def convert_coords(point: dict,
 
     return { "result": get_geojson_from_geometry(result_point) }
 
-@app.post("/distance/", tags=["geometry"])
-async def calc_distance(start: dict, goal: dict):
-    start_geom = get_geometris_from_geojson(start)[0]
-    goal_geom = get_geometris_from_geojson(goal)[0]
+@app.post("/distance/", tags=["geometry"], response_model=dict[str, str])
+async def calc_distance(start: FeatureCollection, goal: FeatureCollection):
+    start_geom = get_geometris_from_feature_collection(start)[0]
+    goal_geom = get_geometris_from_feature_collection(goal)[0]
 
     grs80 = Geod(ellps='GRS80')
     start_lat = get_y(start_geom)

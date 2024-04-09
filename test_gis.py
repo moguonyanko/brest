@@ -74,3 +74,9 @@ def test_convert_coords():
                                 json={"point":{"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"coordinates":[139.75853087104463,35.65343414274557],"type":"Point"}}]},"fromepsg":"4301","toepsg":"4326"})
     assert response.status_code == 200
     assert response.json() == {"result":{"type":"Point","coordinates":[139.75529874550224,35.656675915967796]}}
+
+def test_calc_distance():
+    response = test_client.post("distance", 
+                                json={"start":{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"浜松町駅","id":0},"geometry":{"coordinates":[139.75676229423522,35.655393628051385],"type":"Point"}}]},"goal":{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"name":"東京タワー","id":1},"geometry":{"coordinates":[139.74538477339485,35.658643501386834],"type":"Point"}}]}})
+    assert response.status_code == 200
+    assert response.json() == {"distance":1091.540563705988,"azimuth":-70.70712778188474,"bkw_azimuth":109.28623989884333,"line":{"type":"LineString","coordinates":[[139.75676229423522,35.655393628051385],[139.74538477339485,35.658643501386834]]}}

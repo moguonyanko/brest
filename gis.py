@@ -4,7 +4,7 @@ from typing import Union, Annotated, Any
 from fastapi import FastAPI, HTTPException, status, Body
 from shapely import from_geojson, to_geojson, oriented_envelope, buffer, contains, convex_hull
 from shapely import Polygon, LineString, MultiPoint, GeometryCollection, MultiPolygon, Point
-from shapely import get_x, get_y
+from shapely import get_x, get_y, MultiLineString
 from shapely.ops import triangulate, voronoi_diagram, split, nearest_points
 from pyproj import Proj, transform, Transformer, Geod
 from geojsontypes import FeatureCollection, Feature
@@ -202,7 +202,23 @@ def get_geometris_from_geojson(geojson: dict):
 def get_geometris_from_feature_collection(feature_collection: FeatureCollection):
     geoms = []
     for feature in feature_collection.features:
-        geom = from_geojson(json.dumps(feature.geometry))
+        geotype = feature.geometry.type
+        coords = feature.geometry.coordinates
+        if geotype == 'Point':
+            geom = Point(coords)
+        elif geotype == 'LineString':
+            geom = LineString(coords)
+        elif geotype == 'Polygon':
+            geom = Polygon(coords)
+        elif geotype == 'MultiPolygon':
+            geom = MultiPolygon(coords)
+        elif geotype == 'MultiLineString':
+            geom = MultiLineString(coords)
+        elif geotype == 'MultiPoint':
+            geom = MultiPoint(coords)
+        else:
+            raise TypeError(f"{geotype} is invalid geometry type")
+
         geoms.append(geom)
     return geoms                        
 
@@ -280,7 +296,7 @@ async def convert_coords(point: dict,
 
     return { "result": get_geojson_from_geometry(result_point) }
 
-@app.post("/distance/", tags=["geometry"], response_model=dict[str, str])
+@app.post("/distance/", tags=["geometry"], response_model=dict[str, Any]) #TODO: dictではなく特定のクラスをresponse_modelに指定したい。
 async def calc_distance(start: FeatureCollection, goal: FeatureCollection):
     start_geom = get_geometris_from_feature_collection(start)[0]
     goal_geom = get_geometris_from_feature_collection(goal)[0]

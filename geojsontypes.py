@@ -4,11 +4,20 @@ class Geometry(BaseModel):
   type: str
   coordinates: list[float]
 
+  def to_geojson(self):
+    return {"type":self.type, "coordinates":self.coordinates}
+
 class Feature(BaseModel):
   type: str
   properties: dict
   geometry: Geometry
 
+  def to_geojson(self):
+    return {"type":self.type, "properties":self.properties, "geometry": self.geometry.to_json()}
+
 class FeatureCollection(BaseModel):
   type: str
   features: list[Feature]
+
+  def to_geojson(self):
+    return {"type":self.type, "features":[feature.to_json() for feature in self.features]}

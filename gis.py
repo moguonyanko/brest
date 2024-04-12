@@ -199,26 +199,29 @@ def get_geometris_from_geojson(geojson: dict):
     return [from_geojson(json.dumps(feature["geometry"])) 
             for feature in geojson["features"]]   
 
+def create_geometry(geotype: str, coords: list[float]):
+    match geotype:
+        case 'Point':
+            return Point(coords)
+        case 'LineString':
+            return LineString(coords)
+        case 'Polygon':
+            return Polygon(coords)
+        case 'MultiPolygon':
+            return MultiPolygon(coords)
+        case 'MultiLineString':
+            return MultiLineString(coords)
+        case 'MultiPoint':
+            return MultiPoint(coords)
+        case _:
+            raise TypeError(f"{geotype} is invalid geometry type")
+
 def get_geometris_from_feature_collection(feature_collection: FeatureCollection):
     geoms = []
     for feature in feature_collection.features:
         geotype = feature.geometry.type
         coords = feature.geometry.coordinates
-        if geotype == 'Point':
-            geom = Point(coords)
-        elif geotype == 'LineString':
-            geom = LineString(coords)
-        elif geotype == 'Polygon':
-            geom = Polygon(coords)
-        elif geotype == 'MultiPolygon':
-            geom = MultiPolygon(coords)
-        elif geotype == 'MultiLineString':
-            geom = MultiLineString(coords)
-        elif geotype == 'MultiPoint':
-            geom = MultiPoint(coords)
-        else:
-            raise TypeError(f"{geotype} is invalid geometry type")
-
+        geom = create_geometry(geotype, coords)
         geoms.append(geom)
     return geoms                        
 

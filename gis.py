@@ -8,6 +8,8 @@ from shapely import get_x, get_y, MultiLineString
 from shapely.ops import triangulate, voronoi_diagram, split, nearest_points
 from pyproj import Proj, transform, Transformer, Geod
 from geojsontypes import FeatureCollection, Feature
+import networkx as nx
+import osmnx as ox
 
 app = FastAPI(
     title="Brest GIS API",
@@ -318,3 +320,20 @@ async def calc_distance(start: FeatureCollection, goal: FeatureCollection):
         "bkw_azimuth": bkw_azimuth,
         "line": get_geojson_from_geometry(line) 
         }
+
+@app.post("/routesearch/", tags=["geometry"], response_model=dict[str, Any])
+async def calc_distance(start: FeatureCollection, goal: FeatureCollection, 
+                        bbox: Annotated[list[float], Body()]):
+    start_geom = get_geometris_from_feature_collection(start)[0]
+    goal_geom = get_geometris_from_feature_collection(goal)[0]
+    
+    graph = ox.graph_from_bbox(bbox=bbox, simplify=False, retain_all=True, network_type="drive")
+    start_node = ox.get_nearest_node(graph, (get_y(start_geom), get_x(start_geom)))
+    end_node = ox.get_nearest_node(graph, (get_y(goal_geom), get_x(goal_geom)))
+
+    shortest_path = nx.shortest_path(graph, start_node, end_node)
+    print(shortest_path)
+    
+    return {
+        "path": get_geojson_from_geometry(shortest_path) 
+    }

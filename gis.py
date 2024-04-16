@@ -328,10 +328,10 @@ async def calc_distance(start: FeatureCollection, goal: FeatureCollection,
     goal_geom = get_geometris_from_feature_collection(goal)[0]
     
     graph = ox.graph_from_bbox(bbox=bbox, simplify=False, retain_all=True, network_type="drive")
-    start_node = ox.get_nearest_node(graph, (get_y(start_geom), get_x(start_geom)))
-    end_node = ox.get_nearest_node(graph, (get_y(goal_geom), get_x(goal_geom)))
+    start_node = ox.nearest_nodes(graph, get_x(start_geom), get_y(start_geom))
+    end_node = ox.nearest_nodes(graph, get_x(goal_geom), get_y(goal_geom))
 
-    shortest_path = nx.shortest_path(graph, start_node, end_node)
+    shortest_path = ox.shortest_path(graph, start_node, end_node)
     print(shortest_path)
     
     return {

@@ -332,8 +332,11 @@ async def calc_distance(start: FeatureCollection, goal: FeatureCollection,
     end_node = ox.nearest_nodes(graph, get_x(goal_geom), get_y(goal_geom))
 
     shortest_path = ox.shortest_path(graph, start_node, end_node)
-    print(shortest_path)
-    
+    coords = []
+    for node_id in shortest_path:
+        point = graph.nodes[node_id]
+        coords.append([point["x"], point["y"]])
+
     return {
-        "path": get_geojson_from_geometry(shortest_path) 
+        "path": get_geojson_from_geometry(LineString(coords)) 
     }

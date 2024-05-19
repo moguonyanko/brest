@@ -5,6 +5,20 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "FastAPI: Brest AI Debugging",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "ai:app",
+        "--reload",
+        "--port",
+        "9001"
+      ],
+      "jinja": true,
+      "justMyCode": true
+    },
+    {
       "name": "FastAPI: Brest GIS Debugging",
       "type": "debugpy",
       "request": "launch",

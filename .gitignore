@@ -1,3 +1,6 @@
 __pycache__
 tmp/
 cache/
+venv/
+.venv/
+.pytest_cache/

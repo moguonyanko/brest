@@ -11,7 +11,8 @@ from fastapi.exception_handlers import http_exception_handler, request_validatio
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from enum import Enum
@@ -955,7 +956,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Aut
         if not username:
             raise ex
         token_data = MyTokenData(username=username)
-    except JWTError:
+    except InvalidTokenError:
         raise ex
     user = lookup_auth_user(fake_auth_user_db, token_data.username)
     if user.invalid:

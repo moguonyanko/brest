@@ -1123,3 +1123,19 @@ async def register_greeting(greeting: Greeting, x_token: Annotated[str, Header()
         "greeting": greeting.greeting
     }})
     return greeting
+
+'''
+参考: 
+https://fastapi.tiangolo.com/ja/advanced/response-directly/#response_1
+'''
+@brest_service.get(APP_ROOT + "samplexml/{xml_name}")
+async def get_sample_xml(xml_name: Annotated[str, Field(examples=["sample"])]):
+    file_path = f"sample/{xml_name}.xml"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
+                            detail=f"{xml_name}.xml is not found")
+
+    with open(file_path, "r") as xml_file:
+        content = xml_file.read()
+
+    return Response(content=content, media_type="application/xml")

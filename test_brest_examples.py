@@ -21,3 +21,12 @@ def test_register_greeting():
     assert response.status_code == 200
     #response_modelでGreetingオブジェクトを指定していも戻り値はJSONになっている。
     assert response.json() == {"lang": "original", "greeting": "ハポー"}
+
+def test_get_sample_xml():
+    response = test_client.get(APP_ROOT + "samplexml/sample")
+    
+    with open("sample/sample.xml", "r") as xml_file:
+        expected_content = xml_file.read()
+
+    assert response.status_code == 200
+    assert response.text == expected_content

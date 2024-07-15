@@ -4,7 +4,7 @@ from typing import Union, Annotated, Any
 from fastapi import FastAPI, HTTPException, status, Body
 from shapely import from_geojson, to_geojson, oriented_envelope, buffer, contains, convex_hull
 from shapely import Polygon, LineString, MultiPoint, GeometryCollection, MultiPolygon, Point
-from shapely import get_x, get_y, MultiLineString
+from shapely import get_x, get_y, MultiLineString, is_simple
 from shapely.ops import triangulate, voronoi_diagram, split, nearest_points
 from pyproj import Proj, transform, Transformer, Geod
 from geojsontypes import FeatureCollection, Feature
@@ -339,4 +339,12 @@ async def calc_distance(start: FeatureCollection, goal: FeatureCollection,
 
     return {
         "path": get_geojson_from_geometry(LineString(coords)) 
+    }
+
+@app.post("/crosscheck/", tags=["geometry"], response_model=dict[str, bool])
+async def execute_crosscheck(target: FeatureCollection):
+    target_geom = get_geometris_from_feature_collection(target)[0]
+    result = is_simple(target_geom)
+    return {
+        "result": result
     }

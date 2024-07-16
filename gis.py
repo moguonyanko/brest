@@ -342,9 +342,9 @@ async def calc_distance(start: FeatureCollection, goal: FeatureCollection,
     }
 
 @app.post("/crosscheck/", tags=["geometry"], response_model=dict[str, bool])
-async def execute_crosscheck(target: FeatureCollection):
-    target_geom = get_geometris_from_feature_collection(target)[0]
-    result = is_simple(target_geom)
+async def execute_crosscheck(target: dict):
+    target_geom = get_geometris_from_geojson(target)[0]
+    result = not is_simple(target_geom)
     return {
         "result": result
     }

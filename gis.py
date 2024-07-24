@@ -344,6 +344,7 @@ async def calc_distance(start: FeatureCollection, goal: FeatureCollection,
 '''
 参考:
 https://shapely.readthedocs.io/en/stable/reference/shapely.is_valid.html#shapely.is_valid
+TODO: targetはFeatureCollectionで受けられるようにしたい。
 '''
 @app.post("/crosscheck/", tags=["geometry"], response_model=dict[str, bool])
 async def execute_crosscheck(target: dict):

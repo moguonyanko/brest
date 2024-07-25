@@ -2,14 +2,14 @@ from pydantic import BaseModel
 
 class Geometry(BaseModel):
   type: str
-  coordinates: list[float]
+  coordinates: list[list[list[float]]]
 
   def to_geojson(self):
     return {"type":self.type, "coordinates":self.coordinates}
 
 class Feature(BaseModel):
   type: str
-  properties: dict
+  properties: dict | None
   geometry: Geometry
 
   def to_geojson(self):

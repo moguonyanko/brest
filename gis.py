@@ -208,7 +208,12 @@ def create_geometry(geotype: str, coords: list[float]):
         case 'LineString':
             return LineString(coords)
         case 'Polygon':
-            return Polygon(coords)
+            try:
+                return Polygon(coords)
+            except Exception:
+                #配列の入れ子が深すぎて例外になった場合はsum()で一段階flatにする。
+                #TODO: 他の形状に対しても同様の対応を施す。
+                return Polygon(sum(coords, []))
         case 'MultiPolygon':
             return MultiPolygon(coords)
         case 'MultiLineString':
@@ -347,8 +352,8 @@ https://shapely.readthedocs.io/en/stable/reference/shapely.is_valid.html#shapely
 TODO: targetはFeatureCollectionで受けられるようにしたい。
 '''
 @app.post("/crosscheck/", tags=["geometry"], response_model=dict[str, bool])
-async def execute_crosscheck(target: dict):
-    target_geom = get_geometris_from_geojson(target)[0]
+async def execute_crosscheck(target: FeatureCollection):
+    target_geom = get_geometris_from_feature_collection(target)[0]
     result = not is_valid(target_geom)
     return {
         "result": result

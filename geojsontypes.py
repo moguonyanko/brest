@@ -1,8 +1,23 @@
 from pydantic import BaseModel
 
+#Pointかそれ以外かでcoordinatesの入れ子の数が変わる。これを型の違いで表現して
+#Geometryのcoordinatesの型に指定したい。
+class PointCoordinates(BaseModel):
+  coords: list[list[float]]
+
+  def to_geojson(self):
+    return self.coords
+
+class NotPointCoordinates(BaseModel):
+  coords: list[list[list[float]]]
+
+  def to_geojson(self):
+    return self.coords
+
 class Geometry(BaseModel):
   type: str
-  coordinates: list[list[list[float]]]
+  # coordinates: PointCoordinates | NotPointCoordinates
+  coordinates: list
 
   def to_geojson(self):
     return {"type":self.type, "coordinates":self.coordinates}

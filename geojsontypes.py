@@ -4,8 +4,9 @@ class Coordinates(BaseModel):
   def to_geojson(self):
     return self.coords
 
-#TODO: Pointかそれ以外かでcoordinatesの入れ子の数が変わる。これを型の違いで表現して
-#Geometryのcoordinatesの型に指定したい。
+#Pointかそれ以外かでcoordinatesの入れ子の数が変わる。これを型の違いで表現して
+#Geometryのcoordinatesの型に指定したいが422エラーが発生する。
+#リクエストボディのJSON内の配列に対してBaseModelの方を適用させることはできないのかもしれない。
 class PointCoordinates(Coordinates):
   coords: list[float]
 
@@ -14,6 +15,7 @@ class NotPointCoordinates(Coordinates):
 
 class Geometry(BaseModel):
   type: str
+  #以下だと422エラーになってしまう。
   # coordinates: PointCoordinates | NotPointCoordinates
   coordinates: list[float] | list[list[list[float]]]
   # coordinates: list #これも動作するが型が曖昧すぎる。

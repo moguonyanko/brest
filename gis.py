@@ -201,19 +201,24 @@ def get_geometris_from_geojson(geojson: dict):
     return [from_geojson(json.dumps(feature["geometry"])) 
             for feature in geojson["features"]]   
 
+def is_nested_list(items: list):
+    for item in items:
+        if isinstance(item, list):
+            return True
+    return False
+
 def create_geometry(geotype: str, coords: list[float]):
+    #渡されるGeoJSONの形式によっては入れ子になっているので平坦にする。
+    if is_nested_list(coords):
+        coords = sum(coords, [])
+
     match geotype:
         case 'Point':
             return Point(coords)
         case 'LineString':
             return LineString(coords)
         case 'Polygon':
-            try:
-                return Polygon(coords)
-            except Exception:
-                #配列の入れ子が深すぎて例外になった場合はsum()で一段階flatにする。
-                #TODO: 他の形状に対しても同様の対応を施す。
-                return Polygon(sum(coords, []))
+            return Polygon(coords)
         case 'MultiPolygon':
             return MultiPolygon(coords)
         case 'MultiLineString':

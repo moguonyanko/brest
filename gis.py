@@ -22,6 +22,10 @@ app = FastAPI(
 async def get_hellogis():
     return { "message": "Hello Brest GIS!" }
 
+@app.get("/helloerror/", tags=["test"])
+async def get_hello_error():
+    raise HTTPException(status_code=400, detail='{"code": "ERR001", "message": "test error"}')
+
 def get_coordinates(feature, index: int = 0) -> list:
     if len(feature) == 0:
         return []

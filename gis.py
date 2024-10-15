@@ -10,6 +10,7 @@ from pyproj import Proj, transform, Transformer, Geod
 from geojsontypes import FeatureCollection, Feature
 import networkx as nx
 import osmnx as ox
+from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 app = FastAPI(
     title="Brest GIS API",
@@ -367,3 +368,27 @@ async def execute_crosscheck(target: FeatureCollection):
     return {
         "result": result
     }
+
+def get_db():
+    connect_url = 'mysql://sampleuser:samplepass@localhost:3306/test'
+    connect_args = {"check_same_thread": False}
+    engine = create_engine(connect_url, connect_args=connect_args)
+    SessionLocal = Session(engine)
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close
+
+def execute_query(query: str):
+    with get_db() as db:
+        result = db.execute(query)
+        return result.fetchall()
+
+@app.post("/sqlinject/", tags=["sequrity"], response_model=dict[str, str])
+async def inject_sql(sql: str):
+    result = execute_query(sql)
+    return {
+        "result": result
+    }
+    

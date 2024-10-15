@@ -27,7 +27,6 @@ import time as processtime #datetimeのtimeオブジェクトと衝突するの�
 # from sqlalchemy.orm import Session
 # from . import crud, models, schemas
 # from .database import SessionLocal, engine
-from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 def report_brest_service():
     print(f"REQUEST:{datetime.now()}")
@@ -1140,31 +1139,3 @@ async def get_sample_xml(xml_name: Annotated[str, Field(examples=["sample"])]):
         content = xml_file.read()
 
     return Response(content=content, media_type="application/xml")
-
-def get_db():
-    connect_url = 'mysql://sampleuser:samplepass@localhost:3306/test'
-    connect_args = {"check_same_thread": False}
-    engine = create_engine(connect_url, connect_args=connect_args)
-    SessionLocal = Session(engine)
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close
-
-def execute_query(query: str):
-    with get_db() as db:
-        result = db.execute(query)
-        return result.fetchall()
-
-@brest_service.post(APP_ROOT + "sqlinject/", response_model=dict[str, str])
-async def inject_sql(sql: str):
-    result = execute_query(sql)
-    return {
-        "result": result
-    }
-
-if __name__ == "__main__":
-    result = execute_query("SELECT 1")
-    print(result)
-    

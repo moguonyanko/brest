@@ -1,7 +1,8 @@
 import json
 import math
+from fastapi import FastAPI, HTTPException, status, Body, Depends
+from pydantic import BaseModel
 from typing import Union, Annotated, Any
-from fastapi import FastAPI, HTTPException, status, Body
 from shapely import from_geojson, to_geojson, oriented_envelope, buffer, contains, convex_hull
 from shapely import Polygon, LineString, MultiPoint, GeometryCollection, MultiPolygon, Point
 from shapely import get_x, get_y, MultiLineString, is_valid
@@ -369,26 +370,21 @@ async def execute_crosscheck(target: FeatureCollection):
         "result": result
     }
 
+#TODO: psycopg2がインストールできないとcreate_engineでエラーが発生する。
 def get_db():
-    connect_url = 'mysql://sampleuser:samplepass@localhost:3306/test'
+    connect_url = 'postgresql://postgres:postgres@localhost:5432/postgres'
     connect_args = {"check_same_thread": False}
     engine = create_engine(connect_url, connect_args=connect_args)
-    SessionLocal = Session(engine)
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close
+    with Session(engine) as session:
+        yield session
 
-def execute_query(query: str):
-    with get_db() as db:
-        result = db.execute(query)
-        return result.fetchall()
+class SqlRequest(BaseModel):
+    sql: str
 
-@app.post("/sqlinject/", tags=["sequrity"], response_model=dict[str, str])
-async def inject_sql(sql: str):
-    result = execute_query(sql)
+@app.post("/injectsql/", tags=["sequrity"], response_model=dict[str, Any])
+async def inject_sql(sql_request: SqlRequest, db: Session = Depends(get_db)):
+    results = db.exec(sql_request.sql)
     return {
-        "result": result
+        "result": [dict(row) for row in results]
     }
     

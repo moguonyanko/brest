@@ -11,6 +11,7 @@ from pyproj import Proj, transform, Transformer, Geod
 from geojsontypes import FeatureCollection, Feature
 import networkx as nx
 import osmnx as ox
+import psycopg
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 app = FastAPI(
@@ -381,10 +382,21 @@ def get_db():
 class SqlRequest(BaseModel):
     sql: str
 
+'''
+引数のクエリを実行して結果を返す。
+FastAPIの機能を使わずpsycopgだけでデータベースを扱っている。
+'''
+def execute_query(query: str) -> list:
+    con_str = "postgresql://postgres:postgres@localhost:5432/postgres"
+    with psycopg.connect(con_str, autocommit=True) as conn:
+        with conn.cursor() as cur:    
+            cur.execute(query)
+            return cur.fetchall()
+
 @app.post("/injectsql/", tags=["sequrity"], response_model=dict[str, Any])
-async def inject_sql(sql_request: SqlRequest, db: Session = Depends(get_db)):
-    results = db.exec(sql_request.sql)
+async def inject_sql(sql_request: SqlRequest):
+    results = execute_query(sql_request.sql)
     return {
-        "result": [dict(row) for row in results]
+        "results": results
     }
     

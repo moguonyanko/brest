@@ -393,10 +393,19 @@ def execute_query(query: str) -> list:
             cur.execute(query)
             return cur.fetchall()
 
-@app.post("/injectsql/", tags=["sequrity"], response_model=dict[str, Any])
+@app.post("/injectsql/", tags=["database"], response_model=dict[str, Any])
 async def inject_sql(sql_request: SqlRequest):
     results = execute_query(sql_request.sql)
     return {
         "results": results
     }
     
+@app.post("/cardinarity/", tags=["database"], response_model=dict[str, Any])
+async def get_cardinarity(table_info: dict):
+    table_name = table_info['table']
+    column_name = table_info['column']
+    sql = f'SELECT COUNT(DISTINCT {column_name}) FROM {table_name}'
+    results = execute_query(sql)
+    return {
+        "results": results
+    }

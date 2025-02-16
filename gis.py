@@ -403,6 +403,16 @@ async def inject_sql(sql_request: SqlRequest):
 @app.post("/cardinarity/", tags=["database"], response_model=dict[str, Any])
 async def get_cardinarity(table_info: dict):
     table_name = table_info['table']
+    column_names = table_info['columns']
+    sql = f'SELECT COUNT(DISTINCT {','.join(column_names)}) FROM {table_name}'
+    results = execute_query(sql)
+    return {
+        "results": results
+    }
+
+@app.post("/cardinarity/", tags=["database"], response_model=dict[str, Any])
+async def get_cardinarity(table_info: dict):
+    table_name = table_info['table']
     column_name = table_info['column']
     sql = f'SELECT COUNT(DISTINCT {column_name}) FROM {table_name}'
     results = execute_query(sql)

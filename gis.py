@@ -400,6 +400,10 @@ async def inject_sql(sql_request: SqlRequest):
         "results": results
     }
     
+'''
+データベースの状態は変化するのでカーディナリティや選択率は同じ条件で要求した場合でも
+異なる結果を返す可能性がある。すなわち冪等ではない。しかるにgetではなくpostにしている。
+'''    
 @app.post("/cardinarity/", tags=["database"], response_model=dict[str, Any])
 async def get_cardinarity(table_info: dict):
     table_name = table_info['table']
@@ -410,11 +414,11 @@ async def get_cardinarity(table_info: dict):
         "results": results
     }
 
-@app.post("/cardinarity/", tags=["database"], response_model=dict[str, Any])
-async def get_cardinarity(table_info: dict):
+@app.post("/selectivity/", tags=["database"], response_model=dict[str, Any])
+async def get_selectivit(table_info: dict):
     table_name = table_info['table']
-    column_name = table_info['column']
-    sql = f'SELECT COUNT(DISTINCT {column_name}) FROM {table_name}'
+    condition = table_info['condition']
+    sql = f'SELECT COUNT(*) * 100.0 / (SELECT COUNT(*) FROM {table_name}) AS selection_rate FROM {table_name} WHERE {condition};'
     results = execute_query(sql)
     return {
         "results": results

@@ -43,6 +43,20 @@
       ],
       "jinja": true,
       "justMyCode": true
+    },
+    {
+      "name": "FastAPI: Brest Database API Debugging",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "dbapi:app",
+        "--reload",
+        "--port",
+        "9002"
+      ],
+      "jinja": true,
+      "justMyCode": true
     }
   ]
 }

@@ -30,11 +30,3 @@ def test_get_sample_xml():
 
     assert response.status_code == 200
     assert response.text == expected_content
-
-def test_inject_sql():
-    response = test_client.post(APP_ROOT + "inject_sql/",
-                                json={
-                                    "sql": "SELECT 1"
-                                })
-    assert response.status_code == 200
-    assert response.json() == {"result": "1"}

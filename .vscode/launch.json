@@ -5,12 +5,12 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "FastAPI: Brest AI Debugging",
+      "name": "FastAPI: Brest Azure AI Debugging",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
       "args": [
-        "ai:app",
+        "azureai:app",
         "--reload",
         "--port",
         "9001"
@@ -54,6 +54,20 @@
         "--reload",
         "--port",
         "9002"
+      ],
+      "jinja": true,
+      "justMyCode": true
+    },
+    {
+      "name": "FastAPI: Brest Generative AI API Debugging",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "genaiapi:app",
+        "--reload",
+        "--port",
+        "9003"
       ],
       "jinja": true,
       "justMyCode": true

@@ -4,3 +4,4 @@ cache/
 venv/
 .venv/
 .pytest_cache/
+genaiapi_config.json

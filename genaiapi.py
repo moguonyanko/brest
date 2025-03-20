@@ -1,3 +1,4 @@
+import json
 from typing import Union, Annotated, Any
 from google import genai
 from fastapi import FastAPI, HTTPException, status, Body, Depends
@@ -10,14 +11,17 @@ app = FastAPI(
     version="0.0.1"
 )
 
-client = genai.Client(api_key="")
+#Gemini APIの初期化
+with open('genaiapi_config.json', 'r') as f:
+  config = json.load(f)
 
-MODEL_NAME = "gemini-2.0-flash"
+client = genai.Client(api_key=config['api_key'])
+model_name = config['model_name']
 
 @app.post("/generate/text/", tags=["ai"], response_model=dict[str, Any])
 def generate_text(body: dict):
   response = client.models.generate_content(
-      model=MODEL_NAME, 
+      model=model_name, 
       contents=body['contents']
   )
   return {

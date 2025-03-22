@@ -21,18 +21,22 @@ with open('genaiapi_config.json', 'r') as f:
 client = genai.Client(api_key=config['api_key'])
 model_name = config['model_name']
 
+class GenerationResultText(BaseModel):
+  text: str
 
-@app.post("/generate/text/", tags=["ai"], response_model=dict[str, Any])
+@app.post("/generate/text/", tags=["ai"], response_model=GenerationResultText)
 async def generate_text(body: dict):
     response = client.models.generate_content(
         model=model_name,
-        contents=body['contents']
+        contents=body['contents'],
+        config={
+            'response_mime_type': 'application/json',
+            'response_schema': GenerationResultText
+        }
     )
-    return {
-        "results": response.text
-    }
+    return response.parsed
 
-@app.post("/generate/text-from-image/", tags=["ai"], response_model=dict[str, Any])
+@app.post("/generate/text-from-image/", tags=["ai"], response_model=GenerationResultText)
 async def generate_test_from_image(
     file: Annotated[UploadFile, File(description="プロンプトに渡す画像です。")]
 ):
@@ -41,11 +45,14 @@ async def generate_test_from_image(
         image = Image.open(BytesIO(request_file_content))
         response = client.models.generate_content(
             model="gemini-2.0-flash",
-            contents=[image, "画像について説明してください。"]
-        )        
-        return {
-            "results": response.text
-        }
+            contents=[image, "画像について説明してください。"],
+            config={
+                'response_mime_type': 'application/json',
+                'response_schema': GenerationResultText
+            }
+        )       
+        # 回答は英語で返されてしまう。
+        return response.parsed 
     except Exception:
         raise HTTPException(status_code=500, detail='画像による問い合わせに失敗しました。')
     finally:

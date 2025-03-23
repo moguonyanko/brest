@@ -4,7 +4,7 @@ from typing import Union, Annotated, Any
 from google import genai
 from PIL import Image
 from fastapi import FastAPI, HTTPException, status, Body, Depends
-from fastapi import File, UploadFile
+from fastapi import File, UploadFile, WebSocket
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -58,3 +58,13 @@ async def generate_test_from_image(
     finally:
         file.file.close()
         image.close()
+
+@app.websocket("/generate/talk/")
+async def talk_generative_ai(websocket: WebSocket):
+    await websocket.accept()
+    chat = client.chats.create(model=model_name)
+    while True:
+        user_message = await websocket.receive_text()
+        response = chat.send_message(user_message)
+        await websocket.send_text(response.text)
+        

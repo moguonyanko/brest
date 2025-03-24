@@ -24,15 +24,18 @@ model_name = config['model_name']
 class GenerationResultText(BaseModel):
   text: str
 
+#TODO: types.GenerateContentConfigとどう併用するのか？
+common_config = {
+                'response_mime_type': 'application/json',
+                'response_schema': GenerationResultText
+            }
+
 @app.post("/generate/text/", tags=["ai"], response_model=GenerationResultText)
 async def generate_text(body: dict):
     response = client.models.generate_content(
         model=model_name,
         contents=body['contents'],
-        config={
-            'response_mime_type': 'application/json',
-            'response_schema': GenerationResultText
-        }
+        config=common_config
     )
     return response.parsed
 
@@ -46,10 +49,7 @@ async def generate_test_from_image(
         response = client.models.generate_content(
             model="gemini-2.0-flash",
             contents=[image, "画像について説明してください。"],
-            config={
-                'response_mime_type': 'application/json',
-                'response_schema': GenerationResultText
-            }
+            config=common_config
         )       
         # 回答は英語で返されてしまう。
         return response.parsed 
@@ -59,6 +59,7 @@ async def generate_test_from_image(
         file.file.close()
         image.close()
 
+#TODO: closeされるとエラーが発生してしまう。
 @app.websocket("/generate/talk/")
 async def talk_generative_ai(websocket: WebSocket):
     await websocket.accept()

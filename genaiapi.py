@@ -2,6 +2,7 @@ import json
 from io import BytesIO
 from typing import Union, Annotated, Any
 from google import genai
+from google.genai import types
 from PIL import Image
 from fastapi import FastAPI, HTTPException, status, Body, Depends
 from fastapi import File, UploadFile, WebSocket
@@ -16,10 +17,10 @@ app = FastAPI(
 
 # Gemini APIの初期化
 with open('genaiapi_config.json', 'r') as f:
-    config = json.load(f)
+    genaiapi_config = json.load(f)
 
-client = genai.Client(api_key=config['api_key'])
-model_name = config['model_name']
+client = genai.Client(api_key=genaiapi_config['api_key'])
+model_name = genaiapi_config['model_name']
 
 class GenerationResultText(BaseModel):
   text: str
@@ -63,7 +64,12 @@ async def generate_test_from_image(
 @app.websocket("/generate/talk/")
 async def talk_generative_ai(websocket: WebSocket):
     await websocket.accept()
-    chat = client.chats.create(model=model_name)
+    chat = client.chats.create(
+        model=model_name,
+        config=types.GenerateContentConfig(
+            max_output_tokens=genaiapi_config['max_output_tokens'],
+            temperature=genaiapi_config['temperature']
+    ))
     while True:
         user_message = await websocket.receive_text()
         response = chat.send_message(user_message)

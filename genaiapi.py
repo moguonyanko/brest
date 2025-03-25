@@ -19,8 +19,14 @@ app = FastAPI(
 with open('genaiapi_config.json', 'r') as f:
     genaiapi_config = json.load(f)
 
-client = genai.Client(api_key=genaiapi_config['api_key'])
-model_name = genaiapi_config['model_name']
+def get_genai_client():
+    return genai.Client(api_key=genaiapi_config['api_key'])
+
+def get_generate_text_model_name():
+    return genaiapi_config['model_name']['generate_text']
+
+def get_generate_image_model_name():
+    return genaiapi_config['model_name']['generate_image']
 
 class GenerationResultText(BaseModel):
   text: str
@@ -33,8 +39,8 @@ common_config = {
 
 @app.post("/generate/text/", tags=["ai"], response_model=GenerationResultText)
 async def generate_text(body: dict):
-    response = client.models.generate_content(
-        model=model_name,
+    response = get_genai_client().models.generate_content(
+        model=get_generate_text_model_name(),
         contents=body['contents'],
         config=common_config
     )
@@ -47,8 +53,8 @@ async def generate_test_from_image(
     try:
         request_file_content = await file.read()
         image = Image.open(BytesIO(request_file_content))
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
+        response = get_genai_client().models.generate_content(
+            model=get_generate_text_model_name(),
             contents=[image, "画像について説明してください。"],
             config=common_config
         )       
@@ -64,8 +70,8 @@ async def generate_test_from_image(
 @app.websocket("/generate/talk/")
 async def talk_generative_ai(websocket: WebSocket):
     await websocket.accept()
-    chat = client.chats.create(
-        model=model_name,
+    chat = get_genai_client().chats.create(
+        model=get_generate_text_model_name(),
         config=types.GenerateContentConfig(
             max_output_tokens=genaiapi_config['max_output_tokens'],
             temperature=genaiapi_config['temperature']

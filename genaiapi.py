@@ -4,7 +4,7 @@ from typing import Union, Annotated, Any
 from google import genai
 from google.genai import types
 from PIL import Image
-from fastapi import FastAPI, HTTPException, status, Body, Depends
+from fastapi import FastAPI, HTTPException, status, Body, Depends, Response
 from fastapi import File, UploadFile, WebSocket
 from pydantic import BaseModel
 
@@ -81,3 +81,28 @@ async def talk_generative_ai(websocket: WebSocket):
         response = chat.send_message(user_message)
         await websocket.send_text(response.text)
         
+@app.post("/generate/image/", tags=["ai"], 
+    responses = {
+        200: {
+            "content": {"image/png": {}}
+        },
+        400: {
+            "content": {"text/plain": {}}
+        }
+    },
+    response_class=Response)
+async def generate_image(body: dict):   
+    response = get_genai_client().models.generate_content(
+        model=get_generate_image_model_name(),
+        contents=body['contents'],
+        config=types.GenerateContentConfig(
+            response_modalities=['Text', 'Image']
+        )
+    )
+
+    for part in response.candidates[0].content.parts:
+        if part.text is not None:
+            return Response(content=part.text, media_type='text/plain')            
+        elif part.inline_data is not None:
+            image_bytes = BytesIO((part.inline_data.data))
+            return Response(content=image_bytes, media_type='image/png')

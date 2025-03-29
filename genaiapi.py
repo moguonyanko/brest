@@ -5,6 +5,7 @@ from google import genai
 from google.genai import types
 from PIL import Image
 from fastapi import FastAPI, HTTPException, status, Body, Depends, Response
+from fastapi.responses import StreamingResponse
 from fastapi import File, UploadFile, WebSocket
 from pydantic import BaseModel
 
@@ -22,10 +23,10 @@ with open('genaiapi_config.json', 'r') as f:
 def get_genai_client():
     return genai.Client(api_key=genaiapi_config['api_key'])
 
-def get_generate_text_model_name():
+def get_generate_text_model_name() -> str:
     return genaiapi_config['model_name']['generate_text']
 
-def get_generate_image_model_name():
+def get_generate_image_model_name() -> str:
     return genaiapi_config['model_name']['generate_image']
 
 class GenerationResultText(BaseModel):
@@ -100,9 +101,11 @@ async def generate_image(body: dict):
         )
     )
 
+    # 最初の結果だけ返している。
     for part in response.candidates[0].content.parts:
         if part.text is not None:
             return Response(content=part.text, media_type='text/plain')            
         elif part.inline_data is not None:
             image_bytes = BytesIO((part.inline_data.data))
-            return Response(content=image_bytes, media_type='image/png')
+            image_bytes.seek(0)
+            return Response(content=image_bytes.getvalue(), media_type='image/png')

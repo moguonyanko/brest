@@ -1,4 +1,5 @@
 import json
+import requests
 from io import BytesIO
 from typing import Union, Annotated, Any
 from google import genai
@@ -109,3 +110,20 @@ async def generate_image(body: dict):
             image_bytes = BytesIO((part.inline_data.data))
             image_bytes.seek(0)
             return Response(content=image_bytes.getvalue(), media_type='image/png')
+
+@app.post("/generate/text-from-image-url/", tags=["ai"], response_model=GenerationResultText)
+async def generate_test_from_image_url(body: dict):
+    try:
+        image = requests.get(body['url'])
+        content_type = image.headers.get('Content-Type')
+        response = get_genai_client().models.generate_content(
+            model=genaiapi_config['model_name']['vision'],
+            contents=["画像について説明してください。", 
+                      types.Part.from_bytes(data=image.content, mime_type=content_type)],
+            config=common_config
+        )       
+        # 回答は英語になってしまう。
+        return response.parsed 
+    except Exception:
+        raise HTTPException(status_code=500, detail='画像による問い合わせに失敗しました。')
+

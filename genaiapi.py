@@ -30,6 +30,9 @@ def get_generate_text_model_name() -> str:
 def get_generate_image_model_name() -> str:
     return genaiapi_config['model_name']['generate_image']
 
+def get_generate_vision_model_name() -> str:
+    return genaiapi_config['model_name']['vision']
+
 class GenerationResultText(BaseModel):
   text: str
 
@@ -117,7 +120,7 @@ async def generate_test_from_image_url(body: dict):
         image = requests.get(body['url'])
         content_type = image.headers.get('Content-Type')
         response = get_genai_client().models.generate_content(
-            model=genaiapi_config['model_name']['vision'],
+            model=get_generate_vision_model_name(),
             contents=["画像について説明してください。", 
                       types.Part.from_bytes(data=image.content, mime_type=content_type)],
             config=common_config
@@ -126,4 +129,32 @@ async def generate_test_from_image_url(body: dict):
         return response.parsed 
     except Exception:
         raise HTTPException(status_code=500, detail='画像による問い合わせに失敗しました。')
+
+'''
+参考:
+https://ai.google.dev/gemini-api/docs/vision?hl=ja&lang=python#bbox
+'''
+@app.post("/generate/bouding-box-from-image/", tags=["ai"], response_model=str)
+async def generate_bounding_box_from_image(
+    file: Annotated[UploadFile, File(description="プロンプトに渡す画像です。")]
+):
+    try:
+        request_file_content = await file.read()
+        image = Image.open(BytesIO(request_file_content))
+        prompt = (
+        "Return a bounding box for each of the objects in this image "
+        "in [ymin, xmin, ymax, xmax] format.")        
+        response = get_genai_client().models.generate_content(
+            model=get_generate_text_model_name(),
+            contents=[image, prompt],
+            config={
+                'response_mime_type': 'application/json'
+            }
+        )      
+        return response.text
+    except Exception:
+        raise HTTPException(status_code=500, detail='画像による問い合わせに失敗しました。')
+    finally:
+        file.file.close()
+        image.close()
 

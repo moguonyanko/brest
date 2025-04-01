@@ -1,5 +1,6 @@
 import json
 import requests
+import time
 from io import BytesIO
 from typing import Union, Annotated, Any
 from google import genai
@@ -32,6 +33,9 @@ def get_generate_image_model_name() -> str:
 
 def get_generate_vision_model_name() -> str:
     return genaiapi_config['model_name']['vision']
+
+def get_generate_transcription_model_name() -> str:
+    return genaiapi_config['model_name']['transcription']
 
 class GenerationResultText(BaseModel):
   text: str
@@ -157,4 +161,39 @@ async def generate_bounding_box_from_image(
     finally:
         file.file.close()
         image.close()
+
+'''
+参考:
+https://ai.google.dev/gemini-api/docs/vision?hl=ja&lang=python#prompt-video
+'''
+@app.post("/generate/transcription-from-movie/", tags=["ai"], response_model=str)
+async def generate_transcription_from_movie(
+    file: Annotated[UploadFile, File(description="プロンプトに渡す動画です。")]
+):
+    try:
+        client = get_genai_client()
+        video_file = client.files.upload(file=file)
+
+        # アップロードされた動画が利用可能になるまで待機する。
+        while video_file.state.name == "PROCESSING":
+            print('.', end='')
+            time.sleep(1)
+            video_file = client.files.get(name=video_file.name)
+
+        if video_file.state.name == "FAILED":
+            raise ValueError(video_file.state.name)
+
+        prompt = (
+        "Summarize this video. Then create a quiz with answer key "
+        "based on the information in the video.")        
+        response = client.models.generate_content(
+            model=get_generate_transcription_model_name(),
+            contents=[video_file, prompt],
+            config={
+                'response_mime_type': 'application/json'
+            }
+        )      
+        return response.text
+    except Exception:
+        raise HTTPException(status_code=500, detail='動画による問い合わせに失敗しました。')
 

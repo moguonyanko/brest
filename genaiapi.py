@@ -189,6 +189,21 @@ async def generate_transcription_from_movie(
         prompt = (
         "Please provide the Japanese text you would like me to translate into English."
         "Once you provide the Japanese text, I will also generate a summary of its content.")        
+
+        # TODO: インラインでアップロードした場合でも同じエラーになってしまう。
+        # video_bytes = file.read()
+        # response = client.models.generate_content(
+        #     model=get_generate_transcription_model_name(),
+        #     contents=types.Content(
+        #         parts=[
+        #             types.Part(text=prompt),
+        #             types.Part(
+        #                 inline_data=types.Blob(data=video_bytes, mime_type=file.content_type)
+        #             )
+        #         ]
+        #     )
+        # )
+
         response = client.models.generate_content(
             model=get_generate_transcription_model_name(),
             contents=[video_file, prompt],

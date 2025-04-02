@@ -25,6 +25,9 @@ with open('genaiapi_config.json', 'r') as f:
 def get_genai_client():
     return genai.Client(api_key=genaiapi_config['api_key'])
 
+'''
+設定ファイルからモデル名を取得する関数群
+'''
 def get_generate_text_model_name() -> str:
     return genaiapi_config['model_name']['generate_text']
 
@@ -37,6 +40,12 @@ def get_generate_vision_model_name() -> str:
 def get_generate_transcription_model_name() -> str:
     return genaiapi_config['model_name']['transcription']
 
+def get_generate_transcription_inline_model_name() -> str:
+    return genaiapi_config['model_name']['transcription_inline']
+
+'''
+生成結果をJSONの形式で返すためのクラス
+'''
 class GenerationResultText(BaseModel):
   text: str
 
@@ -186,27 +195,14 @@ async def generate_transcription_from_movie(
         if video_file.state.name == "FAILED":
             raise ValueError(video_file.state.name)
 
-        prompt = (
+        prompt_for_movie_summary = (
         "Please provide the Japanese text you would like me to translate into English."
         "Once you provide the Japanese text, I will also generate a summary of its content.")        
 
-        # TODO: インラインでアップロードした場合でも同じエラーになってしまう。
-        # video_bytes = file.read()
-        # response = client.models.generate_content(
-        #     model=get_generate_transcription_model_name(),
-        #     contents=types.Content(
-        #         parts=[
-        #             types.Part(text=prompt),
-        #             types.Part(
-        #                 inline_data=types.Blob(data=video_bytes, mime_type=file.content_type)
-        #             )
-        #         ]
-        #     )
-        # )
-
+        # TODO: モデルの問題か、エラーにより結果を得ることができない。
         response = client.models.generate_content(
             model=get_generate_transcription_model_name(),
-            contents=[video_file, prompt],
+            contents=[video_file, prompt_for_movie_summary],
             config={
                 'response_mime_type': 'application/json'
             }
@@ -215,3 +211,42 @@ async def generate_transcription_from_movie(
     except Exception as err:
         raise HTTPException(status_code=500, detail=f"Prompt Error: {err=}, {type(err)=}")
 
+'''
+動画をインラインでアップロードして要約を生成します。
+'''
+@app.post("/generate/transcription-inline-from-movie/", tags=["ai"], response_model=str)
+async def generate_transcription_inline_from_movie(
+    file: Annotated[UploadFile, File(description="プロンプトに渡す動画です。")]
+):
+    try:
+        client = get_genai_client()
+
+        prompt_for_movie_summary = (
+        "Please provide the Japanese text you would like me to translate into English."
+        "Once you provide the Japanese text, I will also generate a summary of its content.")        
+
+        video_bytes = file.read()
+
+        # TODO: インラインでアップロードした場合でも同じエラーになってしまう。
+        response = client.models.generate_content(
+            model=get_generate_transcription_inline_model_name(),
+            contents=types.Content(
+                parts=[
+                    types.Part(text=prompt_for_movie_summary),
+                    types.Part(
+                        inline_data=types.Blob(data=video_bytes, 
+                                            mime_type=file.content_type)
+                    )
+                ]
+            ),
+            config={
+                'response_mime_type': 'application/json'
+            }
+        )
+
+        return response.text
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=f"Prompt Error: {err=}, {type(err)=}")
+    finally:
+        video_bytes.close()
+    

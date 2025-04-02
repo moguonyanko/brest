@@ -172,7 +172,10 @@ async def generate_transcription_from_movie(
 ):
     try:
         client = get_genai_client()
-        video_file = client.files.upload(file=file)
+        video_file = client.files.upload(file=file.file,
+                                         config={
+                                             'mime_type': file.content_type
+                                         })
 
         # アップロードされた動画が利用可能になるまで待機する。
         while video_file.state.name == "PROCESSING":
@@ -184,8 +187,8 @@ async def generate_transcription_from_movie(
             raise ValueError(video_file.state.name)
 
         prompt = (
-        "Summarize this video. Then create a quiz with answer key "
-        "based on the information in the video.")        
+        "Please provide the Japanese text you would like me to translate into English."
+        "Once you provide the Japanese text, I will also generate a summary of its content.")        
         response = client.models.generate_content(
             model=get_generate_transcription_model_name(),
             contents=[video_file, prompt],
@@ -194,6 +197,6 @@ async def generate_transcription_from_movie(
             }
         )      
         return response.text
-    except Exception:
-        raise HTTPException(status_code=500, detail='動画による問い合わせに失敗しました。')
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=f"Prompt Error: {err=}, {type(err)=}")
 

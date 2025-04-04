@@ -37,11 +37,14 @@ def get_generate_image_model_name() -> str:
 def get_generate_vision_model_name() -> str:
     return genaiapi_config['model_name']['vision']
 
-def get_generate_transcription_model_name() -> str:
-    return genaiapi_config['model_name']['transcription']
+def get_generate_transcription_movie_model_name() -> str:
+    return genaiapi_config['model_name']['transcription_movie']
 
-def get_generate_transcription_inline_model_name() -> str:
-    return genaiapi_config['model_name']['transcription_inline']
+def get_generate_transcription_movie_inline_model_name() -> str:
+    return genaiapi_config['model_name']['transcription_movie_inline']
+
+def get_generate_transcription_audio_inline_model_name() -> str:
+    return genaiapi_config['model_name']['transcription_audio_inline']
 
 '''
 生成結果をJSONの形式で返すためのクラス
@@ -201,7 +204,7 @@ async def generate_transcription_from_movie(
 
         # TODO: モデルの問題か、エラーにより結果を得ることができない。
         response = client.models.generate_content(
-            model=get_generate_transcription_model_name(),
+            model=get_generate_transcription_movie_model_name(),
             contents=[video_file, prompt_for_movie_summary],
             config={
                 'response_mime_type': 'application/json'
@@ -229,7 +232,7 @@ async def generate_transcription_inline_from_movie(
 
         # TODO: インラインでアップロードした場合でも同じエラーになってしまう。
         response = client.models.generate_content(
-            model=get_generate_transcription_inline_model_name(),
+            model=get_generate_transcription_movie_inline_model_name(),
             contents=types.Content(
                 parts=[
                     types.Part(text=prompt_for_movie_summary),
@@ -250,3 +253,37 @@ async def generate_transcription_inline_from_movie(
     finally:
         video_bytes.close()
     
+'''
+音声ファイルをインラインでAPIに渡して文字起こしかつ要約します。
+'''    
+@app.post("/generate/transcription-inline-from-audio/", tags=["ai"], response_model=str)
+async def generate_transcription_inline_from_auido(
+    file: Annotated[UploadFile, File(description="プロンプトに渡す音声です。")]
+):
+    client = get_genai_client()
+
+    prompt_for_audio_summary = "Please transcribe the audio file and summarize it."
+
+    audio_bytes = file.read()
+
+    try:
+        response = client.models.generate_content(
+            model=get_generate_transcription_audio_inline_model_name(),
+            contents=[
+                prompt_for_audio_summary,
+                types.Part.from_bytes(
+                    data=audio_bytes,
+                    mime_type=file.content_type,
+                )
+            ],
+            config={
+                'response_mime_type': 'application/json'
+            }        
+        )
+        return response.text
+    except Exception as err:
+        raise HTTPException(status_code=500, 
+            detail=f"Generation Error: {err=}, {type(err)=}")
+    finally:
+        audio_bytes.close()
+

@@ -26,8 +26,8 @@ def test_generate_text():
 https://ai.google.dev/gemini-api/docs/vision?hl=ja&lang=python#inline-video
 '''
 def test_generate_text_from_inline_movie():
-  video_file_name = f"{Path.home()}/share/movie/samplenote.m4v"
-  video_bytes = open(video_file_name, 'rb').read()
+  with open(f"{Path.home()}/share/movie/samplenote.m4v", 'rb') as f:
+    video_bytes = f.read()
 
   response = get_genai_client().models.generate_content(
       model='models/gemini-2.0-flash',

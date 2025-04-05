@@ -202,7 +202,6 @@ async def generate_transcription_from_movie(
         "Please provide the Japanese text you would like me to translate into English."
         "Once you provide the Japanese text, I will also generate a summary of its content.")        
 
-        # TODO: モデルの問題か、エラーにより結果を得ることができない。
         response = client.models.generate_content(
             model=get_generate_transcription_movie_model_name(),
             contents=[video_file, prompt_for_movie_summary],
@@ -228,9 +227,8 @@ async def generate_transcription_inline_from_movie(
         "Please provide the Japanese text you would like me to translate into English."
         "Once you provide the Japanese text, I will also generate a summary of its content.")        
 
-        video_bytes = file.read()
+        video_bytes = await file.read()
 
-        # TODO: インラインでアップロードした場合でも同じエラーになってしまう。
         response = client.models.generate_content(
             model=get_generate_transcription_movie_inline_model_name(),
             contents=types.Content(
@@ -249,9 +247,7 @@ async def generate_transcription_inline_from_movie(
 
         return response.text
     except Exception as err:
-        raise HTTPException(status_code=500, detail=f"Prompt Error: {err=}, {type(err)=}")
-    finally:
-        video_bytes.close()
+        raise HTTPException(status_code=500, detail=f"Generation Error: {err=}, {type(err)=}")
     
 '''
 音声ファイルをインラインでAPIに渡して文字起こしかつ要約します。
@@ -264,7 +260,7 @@ async def generate_transcription_inline_from_auido(
 
     prompt_for_audio_summary = "Please transcribe the audio file and summarize it."
 
-    audio_bytes = file.read()
+    audio_bytes = await file.read()
 
     try:
         response = client.models.generate_content(
@@ -284,6 +280,4 @@ async def generate_transcription_inline_from_auido(
     except Exception as err:
         raise HTTPException(status_code=500, 
             detail=f"Generation Error: {err=}, {type(err)=}")
-    finally:
-        audio_bytes.close()
 

@@ -18,12 +18,20 @@ app = FastAPI(
     version="0.0.1"
 )
 
-# Gemini APIの初期化
-with open('genaiapi_config.json', 'r') as f:
-    genaiapi_config = json.load(f)
+def load_config_file(path: str):
+    with open(path, 'r') as f:
+        return json.load(f)
+
+# Gemini APIの設定読み込み
+genaiapi_config = load_config_file(path='genaiapi_config.json')
+
+# Gemini APIのキー読み込み
+api_keys = load_config_file(path='genaiapi_key.json')['api_keys']
+# APIキーを使い分ける必要が生じたらcommon以外を参照できるように以下のコードを修正する。
+api_key = api_keys['common']
 
 def get_genai_client():
-    return genai.Client(api_key=genaiapi_config['api_key'])
+    return genai.Client(api_key=api_key)
 
 '''
 設定ファイルからモデル名を取得する関数群

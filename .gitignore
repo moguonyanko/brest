@@ -4,4 +4,4 @@ cache/
 venv/
 .venv/
 .pytest_cache/
-genaiapi_key.json
+genaiapi_keys.json

@@ -58,6 +58,9 @@ def get_generate_transcription_movie_inline_model_name() -> str:
 def get_generate_transcription_audio_inline_model_name() -> str:
     return genaiapi_model_names['transcription_audio_inline']
 
+def get_model_name_summarize_document() -> str:
+    return genaiapi_model_names['summarize_document']
+
 '''
 生成結果をJSONの形式で返すためのクラス
 '''
@@ -289,3 +292,27 @@ async def generate_transcription_inline_from_auido(
         raise HTTPException(status_code=500, 
             detail=f"Generation Error: {err=}, {type(err)=}")
 
+
+@app.post("/generate/summarization-from-document/", tags=["ai"], response_model=str,
+          description='アップロードされたドキュメントから要約を生成します。')
+async def generate_summarization_from_document(
+    file: Annotated[UploadFile, File(description="処理対象ドキュメントです。")]
+):
+    try:
+        # ドキュメントが大きい場合は読み込み方法を再考する。
+        doc_bytes = await file.read() 
+
+        prompt = "文書の要約を生成してください"
+        response = get_genai_client().models.generate_content(
+            model=get_model_name_summarize_document(),
+            contents=[
+                types.Part.from_bytes(
+                data=doc_bytes,
+                mime_type=file.content_type,
+                ), prompt],
+                config=types.GenerateContentConfig(**genaiapi_config))
+        
+        return response.text
+    except Exception as err:
+        raise HTTPException(status_code=500, 
+            detail=f"Generation Error: {err=}, {type(err)=}")

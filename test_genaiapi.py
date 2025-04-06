@@ -1,5 +1,4 @@
 from pathlib import Path
-import httpx
 from fastapi.testclient import TestClient
 from genaiapi import app, get_genai_client, get_generate_image_model_name
 from google import genai

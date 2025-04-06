@@ -1,12 +1,5 @@
 {
-  "model_name": {
-    "generate_text": "gemini-2.0-flash",
-    "generate_image": "gemini-2.0-flash-exp-image-generation",
-    "vision": "gemini-2.0-flash",
-    "transcription_movie": "gemini-1.5-pro",
-    "transcription_movie_inline": "models/gemini-2.0-flash",
-    "transcription_audio_inline": "gemini-2.0-flash"
-  },
-  "max_output_tokens": 500,
-  "temperature": 0.1
+  "max_output_tokens": 1000,
+  "temperature": 0.1,
+  "response_mime_type": "application/json"
 }

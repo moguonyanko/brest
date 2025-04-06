@@ -22,11 +22,15 @@ def load_config_file(path: str):
     with open(path, 'r') as f:
         return json.load(f)
 
-# Gemini APIの設定読み込み
+# Gemini APIの共通設定読み込み
 genaiapi_config = load_config_file(path='genaiapi_config.json')
 
+# Gemini APIのモデル設定読み込み
+genaiapi_models = load_config_file(path='genaiapi_models.json')
+genaiapi_model_names = genaiapi_models['model_name']
+
 # Gemini APIのキー読み込み
-api_keys = load_config_file(path='genaiapi_key.json')['api_keys']
+api_keys = load_config_file(path='genaiapi_keys.json')['api_keys']
 # APIキーを使い分ける必要が生じたらcommon以外を参照できるように以下のコードを修正する。
 api_key = api_keys['common']
 
@@ -37,22 +41,22 @@ def get_genai_client():
 設定ファイルからモデル名を取得する関数群
 '''
 def get_generate_text_model_name() -> str:
-    return genaiapi_config['model_name']['generate_text']
+    return genaiapi_model_names['generate_text']
 
 def get_generate_image_model_name() -> str:
-    return genaiapi_config['model_name']['generate_image']
+    return genaiapi_model_names['generate_image']
 
 def get_generate_vision_model_name() -> str:
-    return genaiapi_config['model_name']['vision']
+    return genaiapi_model_names['vision']
 
 def get_generate_transcription_movie_model_name() -> str:
-    return genaiapi_config['model_name']['transcription_movie']
+    return genaiapi_model_names['transcription_movie']
 
 def get_generate_transcription_movie_inline_model_name() -> str:
-    return genaiapi_config['model_name']['transcription_movie_inline']
+    return genaiapi_model_names['transcription_movie_inline']
 
 def get_generate_transcription_audio_inline_model_name() -> str:
-    return genaiapi_config['model_name']['transcription_audio_inline']
+    return genaiapi_model_names['transcription_audio_inline']
 
 '''
 生成結果をJSONの形式で返すためのクラス
@@ -60,18 +64,15 @@ def get_generate_transcription_audio_inline_model_name() -> str:
 class GenerationResultText(BaseModel):
   text: str
 
-#TODO: types.GenerateContentConfigとどう併用するのか？
-common_config = {
-                'response_mime_type': 'application/json',
-                'response_schema': GenerationResultText
-            }
-
 @app.post("/generate/text/", tags=["ai"], response_model=GenerationResultText)
 async def generate_text(body: dict):
     response = get_genai_client().models.generate_content(
         model=get_generate_text_model_name(),
         contents=body['contents'],
-        config=common_config
+        config={
+                'response_mime_type': 'application/json',
+                'response_schema': GenerationResultText
+            }
     )
     return response.parsed
 
@@ -85,7 +86,10 @@ async def generate_test_from_image(
         response = get_genai_client().models.generate_content(
             model=get_generate_text_model_name(),
             contents=[image, "画像について説明してください。"],
-            config=common_config
+            config={
+                'response_mime_type': 'application/json',
+                'response_schema': GenerationResultText
+            }
         )       
         # 回答は英語で返されてしまう。
         return response.parsed 
@@ -147,7 +151,10 @@ async def generate_test_from_image_url(body: dict):
             model=get_generate_vision_model_name(),
             contents=["画像について説明してください。", 
                       types.Part.from_bytes(data=image.content, mime_type=content_type)],
-            config=common_config
+            config={
+                'response_mime_type': 'application/json',
+                'response_schema': GenerationResultText
+            }
         )       
         # 回答は英語になってしまう。
         return response.parsed 
@@ -213,9 +220,7 @@ async def generate_transcription_from_movie(
         response = client.models.generate_content(
             model=get_generate_transcription_movie_model_name(),
             contents=[video_file, prompt_for_movie_summary],
-            config={
-                'response_mime_type': 'application/json'
-            }
+            config=types.GenerateContentConfig(**genaiapi_config)
         )      
         return response.text
     except Exception as err:
@@ -248,11 +253,8 @@ async def generate_transcription_inline_from_movie(
                     )
                 ]
             ),
-            config={
-                'response_mime_type': 'application/json'
-            }
+            config=types.GenerateContentConfig(**genaiapi_config)
         )
-
         return response.text
     except Exception as err:
         raise HTTPException(status_code=500, detail=f"Generation Error: {err=}, {type(err)=}")
@@ -280,9 +282,7 @@ async def generate_transcription_inline_from_auido(
                     mime_type=file.content_type,
                 )
             ],
-            config={
-                'response_mime_type': 'application/json'
-            }        
+            config=types.GenerateContentConfig(**genaiapi_config)
         )
         return response.text
     except Exception as err:

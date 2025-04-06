@@ -268,7 +268,7 @@ async def generate_transcription_inline_from_auido(
 ):
     client = get_genai_client()
 
-    prompt_for_audio_summary = "Please transcribe the audio file and summarize it."
+    prompt_for_audio_summary = "Please transcribe the audio file into Japanese and then summarize it."
 
     audio_bytes = await file.read()
 

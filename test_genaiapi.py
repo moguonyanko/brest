@@ -1,4 +1,5 @@
 from pathlib import Path
+import httpx
 from fastapi.testclient import TestClient
 from genaiapi import app, get_genai_client, get_generate_image_model_name
 from google import genai
@@ -63,4 +64,26 @@ def test_generate_text_from_inline_audio():
     ]
   )
 
+  assert response.text is not None
+
+'''
+ローカルのPDFファイルから要約を生成するテスト
+https://ai.google.dev/gemini-api/docs/document-processing?hl=ja&lang=python#local-pdfs
+'''
+def test_generate_text_from_local_pdf():
+  client = get_genai_client()
+
+  # Retrieve and encode the PDF byte
+  filepath = Path(f"{Path.home()}/share/doc/sampledocument.pdf")
+
+  prompt = "Summarize this document"
+  response = client.models.generate_content(
+    model="gemini-1.5-flash",
+    contents=[
+        types.Part.from_bytes(
+          data=filepath.read_bytes(),
+          mime_type='application/pdf',
+        ),
+        prompt])
+  
   assert response.text is not None

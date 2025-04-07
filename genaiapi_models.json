@@ -6,6 +6,7 @@
     "transcription_movie": "gemini-1.5-pro",
     "transcription_movie_inline": "models/gemini-2.0-flash",
     "transcription_audio_inline": "gemini-2.0-flash",
-    "summarize_document": "gemini-1.5-flash"
+    "summarize_document": "gemini-1.5-flash",
+    "text_embedding": "gemini-embedding-exp-03-07"
   }
 }

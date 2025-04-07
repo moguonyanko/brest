@@ -61,6 +61,9 @@ def get_generate_transcription_audio_inline_model_name() -> str:
 def get_model_name_summarize_document() -> str:
     return genaiapi_model_names['summarize_document']
 
+def get_model_name_text_embedding() -> str:
+    return genaiapi_model_names['text_embedding']
+
 '''
 生成結果をJSONの形式で返すためのクラス
 '''
@@ -316,3 +319,22 @@ async def generate_summarization_from_document(
     except Exception as err:
         raise HTTPException(status_code=500, 
             detail=f"Generation Error: {err=}, {type(err)=}")
+
+@app.post("/generate/text-similarity/", tags=["ai"], response_model=str,
+          description='テキストの埋め込みを利用してテキストの類似性を取得します。')
+async def generate_text_similarity(body: dict):
+    try:
+        contents = body['contents']
+
+        response = get_genai_client().models.generate_content(
+            model=get_model_name_text_embedding(),
+            contents=contents,
+            config=types.EmbedContentConfig(task_type="SEMANTIC_SIMILARITY")
+        )
+
+        return response.text
+    except Exception as err:
+        print(contents)
+        raise HTTPException(status_code=500, 
+            detail=f"Generation Error: {err=}, {type(err)=}")
+    

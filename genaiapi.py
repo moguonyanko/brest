@@ -320,21 +320,20 @@ async def generate_summarization_from_document(
         raise HTTPException(status_code=500, 
             detail=f"Generation Error: {err=}, {type(err)=}")
 
-@app.post("/generate/text-similarity/", tags=["ai"], response_model=str,
+@app.post("/generate/text-similarity/", tags=["ai"], response_model=list,
           description='テキストの埋め込みを利用してテキストの類似性を取得します。')
 async def generate_text_similarity(body: dict):
     try:
         contents = body['contents']
 
-        response = get_genai_client().models.generate_content(
+        response = get_genai_client().models.embed_content(
             model=get_model_name_text_embedding(),
             contents=contents,
             config=types.EmbedContentConfig(task_type="SEMANTIC_SIMILARITY")
         )
 
-        return response.text
+        return response.embeddings
     except Exception as err:
-        print(contents)
         raise HTTPException(status_code=500, 
             detail=f"Generation Error: {err=}, {type(err)=}")
     

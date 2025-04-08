@@ -3,6 +3,8 @@ import requests
 import time
 from io import BytesIO
 from typing import Union, Annotated, Any
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 from google import genai
 from google.genai import types
 from PIL import Image
@@ -17,6 +19,8 @@ app = FastAPI(
     summary="Gen AI API by REST",
     version="0.0.1"
 )
+
+app_base_path = '/generate'
 
 def load_config_file(path: str):
     with open(path, 'r') as f:
@@ -70,7 +74,7 @@ def get_model_name_text_embedding() -> str:
 class GenerationResultText(BaseModel):
   text: str
 
-@app.post("/generate/text/", tags=["ai"], response_model=GenerationResultText)
+@app.post(f"{app_base_path}/text/", tags=["ai"], response_model=GenerationResultText)
 async def generate_text(body: dict):
     response = get_genai_client().models.generate_content(
         model=get_generate_text_model_name(),
@@ -82,7 +86,7 @@ async def generate_text(body: dict):
     )
     return response.parsed
 
-@app.post("/generate/text-from-image/", tags=["ai"], response_model=GenerationResultText)
+@app.post(f"{app_base_path}/text-from-image/", tags=["ai"], response_model=GenerationResultText)
 async def generate_test_from_image(
     file: Annotated[UploadFile, File(description="プロンプトに渡す画像です。")]
 ):
@@ -106,7 +110,7 @@ async def generate_test_from_image(
         image.close()
 
 #TODO: closeされるとエラーが発生してしまう。
-@app.websocket("/generate/talk/")
+@app.websocket(f"{app_base_path}/talk/")
 async def talk_generative_ai(websocket: WebSocket):
     await websocket.accept()
     chat = get_genai_client().chats.create(
@@ -120,7 +124,7 @@ async def talk_generative_ai(websocket: WebSocket):
         response = chat.send_message(user_message)
         await websocket.send_text(response.text)
         
-@app.post("/generate/image/", tags=["ai"], 
+@app.post(f"{app_base_path}/image/", tags=["ai"], 
     responses = {
         200: {
             "content": {"image/png": {}}
@@ -148,7 +152,7 @@ async def generate_image(body: dict):
             image_bytes.seek(0)
             return Response(content=image_bytes.getvalue(), media_type='image/png')
 
-@app.post("/generate/text-from-image-url/", tags=["ai"], response_model=GenerationResultText)
+@app.post(f"{app_base_path}/text-from-image-url/", tags=["ai"], response_model=GenerationResultText)
 async def generate_test_from_image_url(body: dict):
     try:
         image = requests.get(body['url'])
@@ -171,7 +175,7 @@ async def generate_test_from_image_url(body: dict):
 参考:
 https://ai.google.dev/gemini-api/docs/vision?hl=ja&lang=python#bbox
 '''
-@app.post("/generate/bouding-box-from-image/", tags=["ai"], response_model=str)
+@app.post(f"{app_base_path}/bouding-box-from-image/", tags=["ai"], response_model=str)
 async def generate_bounding_box_from_image(
     file: Annotated[UploadFile, File(description="プロンプトに渡す画像です。")]
 ):
@@ -199,7 +203,7 @@ async def generate_bounding_box_from_image(
 参考:
 https://ai.google.dev/gemini-api/docs/vision?hl=ja&lang=python#prompt-video
 '''
-@app.post("/generate/transcription-from-movie/", tags=["ai"], response_model=str)
+@app.post(f"{app_base_path}/transcription-from-movie/", tags=["ai"], response_model=str)
 async def generate_transcription_from_movie(
     file: Annotated[UploadFile, File(description="プロンプトに渡す動画です。")]
 ):
@@ -235,7 +239,7 @@ async def generate_transcription_from_movie(
 '''
 動画をインラインでアップロードして要約を生成します。
 '''
-@app.post("/generate/transcription-inline-from-movie/", tags=["ai"], response_model=str)
+@app.post(f"{app_base_path}/transcription-inline-from-movie/", tags=["ai"], response_model=str)
 async def generate_transcription_inline_from_movie(
     file: Annotated[UploadFile, File(description="プロンプトに渡す動画です。")]
 ):
@@ -268,7 +272,7 @@ async def generate_transcription_inline_from_movie(
 '''
 音声ファイルをインラインでAPIに渡して文字起こしかつ要約します。
 '''    
-@app.post("/generate/transcription-inline-from-audio/", tags=["ai"], response_model=str)
+@app.post(f"{app_base_path}/transcription-inline-from-audio/", tags=["ai"], response_model=str)
 async def generate_transcription_inline_from_auido(
     file: Annotated[UploadFile, File(description="プロンプトに渡す音声です。")]
 ):
@@ -296,7 +300,7 @@ async def generate_transcription_inline_from_auido(
             detail=f"Generation Error: {err=}, {type(err)=}")
 
 
-@app.post("/generate/summarization-from-document/", tags=["ai"], response_model=str,
+@app.post(f"{app_base_path}/summarization-from-document/", tags=["ai"], response_model=str,
           description='アップロードされたドキュメントから要約を生成します。')
 async def generate_summarization_from_document(
     file: Annotated[UploadFile, File(description="処理対象ドキュメントです。")]
@@ -320,9 +324,19 @@ async def generate_summarization_from_document(
         raise HTTPException(status_code=500, 
             detail=f"Generation Error: {err=}, {type(err)=}")
 
-@app.post("/generate/text-similarity/", tags=["ai"], response_model=list,
+@app.post(f"{app_base_path}/text-similarity/", tags=["ai"], response_model=list,
           description='テキストの埋め込みを利用してテキストの類似性を取得します。')
-async def generate_text_similarity(body: dict):
+async def generate_text_similarity(body: Annotated[dict, 
+                                    Body(
+                        openapi_examples={
+                            "basic_example": {
+                                "contents": [
+                                    "Hello, World",
+                                    "こんにちは、世界"
+                                ]
+                            }
+                        }
+                    )]):
     try:
         contents = body['contents']
 

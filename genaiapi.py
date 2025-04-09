@@ -324,7 +324,51 @@ async def generate_summarization_from_document(
         raise HTTPException(status_code=500, 
             detail=f"Generation Error: {err=}, {type(err)=}")
 
-@app.post(f"{app_base_path}/text-similarity/", tags=["ai"], response_model=list,
+def calculate_pairwise_similarities(embeddings: list):
+    """
+    複数の埋め込みベクトル間のペアワイズなコサイン類似度を計算します。
+
+    Args:
+        embeddings (list of list or numpy.ndarray): 埋め込みベクトルのリスト。
+
+    Returns:
+        list of float: すべてのペアのコサイン類似度のリスト。
+    """
+    num_embeddings = len(embeddings)
+    similarities = []
+    for i in range(num_embeddings):
+        for j in range(i + 1, num_embeddings):
+            emb1 = np.array(embeddings[i].values).reshape(1, -1)
+            emb2 = np.array(embeddings[j].values).reshape(1, -1)
+            similarity = cosine_similarity(emb1, emb2)[0][0]
+            similarities.append(similarity)
+    return similarities
+
+def aggregate_similarity(pairwise_similarities, aggregation_method="mean"):
+    """
+    ペアワイズな類似度を特定の方法で集約します。
+
+    Args:
+        pairwise_similarities (list of float): ペアワイズな類似度のリスト。
+        aggregation_method (str): 集約方法 ("mean", "min", "median"のいずれか)。
+        デフォルトは "mean"。
+
+    Returns:
+        float: 集約された類似度。
+    """
+    if not pairwise_similarities:
+        return 0.0
+
+    if aggregation_method == "mean":
+        return np.mean(pairwise_similarities)
+    elif aggregation_method == "min":
+        return np.min(pairwise_similarities)
+    elif aggregation_method == "median":
+        return np.median(pairwise_similarities)
+    else:
+        raise ValueError("'mean', 'min', 'median' のいずれかを指定してください。")
+
+@app.post(f"{app_base_path}/text-similarity/", tags=["ai"], response_model=float,
           description='テキストの埋め込みを利用してテキストの類似性を取得します。')
 async def generate_text_similarity(body: Annotated[dict, 
                                     Body(
@@ -346,7 +390,8 @@ async def generate_text_similarity(body: Annotated[dict,
             config=types.EmbedContentConfig(task_type="SEMANTIC_SIMILARITY")
         )
 
-        return response.embeddings
+        pairwise_similarities = calculate_pairwise_similarities(response.embeddings)
+        return aggregate_similarity(pairwise_similarities)
     except Exception as err:
         raise HTTPException(status_code=500, 
             detail=f"Generation Error: {err=}, {type(err)=}")

@@ -9,10 +9,10 @@ import base64
 
 test_client = TestClient(app)
 
-'''
-テキストのプロンプトからテキスト生成して返すテスト
-'''
 def test_generate_text():
+  '''
+  テキストのプロンプトからテキスト生成して返すテスト
+  '''
   response = test_client.post("/generate/text/",
                               json={"contents":"What is one plus one?"})
   assert response.status_code == 200
@@ -20,12 +20,12 @@ def test_generate_text():
   print(text)
   assert "two" in text.lower()
 
-'''
-ローカルの動画ファイルをインラインでアップロードして文字起こしできるかを確認するテスト
-参考:
-https://ai.google.dev/gemini-api/docs/vision?hl=ja&lang=python#inline-video
-'''
 def test_generate_text_from_inline_movie():
+  '''
+  ローカルの動画ファイルをインラインでアップロードして文字起こしできるかを確認するテスト
+  参考:
+  https://ai.google.dev/gemini-api/docs/vision?hl=ja&lang=python#inline-video
+  '''
   with open(f"{Path.home()}/share/movie/samplenote.m4v", 'rb') as f:
     video_bytes = f.read()
 
@@ -43,12 +43,12 @@ def test_generate_text_from_inline_movie():
 
   assert response.text is not None
 
-'''
-ローカルの音声ファイルをインラインでアップロードして文字起こしできるかどうかのテスト
-参考:
-https://ai.google.dev/gemini-api/docs/audio?hl=ja&lang=python#inline-data
-'''
 def test_generate_text_from_inline_audio():
+  '''
+  ローカルの音声ファイルをインラインでアップロードして文字起こしできるかどうかのテスト
+  参考:
+  https://ai.google.dev/gemini-api/docs/audio?hl=ja&lang=python#inline-data
+  '''
   with open(f"{Path.home()}/share/audio/sampleaudio.m4a", 'rb') as f:
       audio_bytes = f.read()
 
@@ -65,11 +65,11 @@ def test_generate_text_from_inline_audio():
 
   assert response.text is not None
 
-'''
-ローカルのPDFファイルから要約を生成するテスト
-https://ai.google.dev/gemini-api/docs/document-processing?hl=ja&lang=python#local-pdfs
-'''
 def test_generate_text_from_local_pdf():
+  '''
+  ローカルのPDFファイルから要約を生成するテスト
+  https://ai.google.dev/gemini-api/docs/document-processing?hl=ja&lang=python#local-pdfs
+  '''
   client = get_genai_client()
 
   # Retrieve and encode the PDF byte
@@ -86,3 +86,28 @@ def test_generate_text_from_local_pdf():
         prompt])
   
   assert response.text is not None
+
+def test_generate_image_from_text():
+  '''
+  テキストから画像生成できるかどうかを確認するための関数です。
+  '''
+  client = get_genai_client()
+  contents = ('Create photorealistic, fresh images of apples.')
+
+  response = client.models.generate_content(
+      model="gemini-2.0-flash-exp-image-generation",
+      contents=contents,
+      config=types.GenerateContentConfig(
+        response_modalities=['Text', 'Image']
+      )
+  )
+
+  for part in response.candidates[0].content.parts:
+    if part.text is not None:
+      print(part.text)
+    elif part.inline_data is not None:
+      image = Image.open(BytesIO((part.inline_data.data)))
+      image.save(f"{Path.home()}/share/image/genai/gemini-native-image.png")
+      image.show()  
+
+  assert image is not None  

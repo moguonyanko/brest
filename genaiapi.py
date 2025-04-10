@@ -372,14 +372,14 @@ def aggregate_similarity(pairwise_similarities, aggregation_method="mean"):
           description='テキストの埋め込みを利用してテキストの類似性を取得します。')
 async def generate_text_similarity(body: Annotated[dict, 
                                     Body(
-                        openapi_examples={
-                            "basic_example": {
+                        examples=[
+                            {
                                 "contents": [
                                     "Hello, World",
                                     "こんにちは、世界"
                                 ]
                             }
-                        }
+                        ]
                     )]):
     try:
         contents = body['contents']

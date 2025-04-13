@@ -127,30 +127,44 @@ async def talk_generative_ai(websocket: WebSocket):
 @app.post(f"{app_base_path}/image/", tags=["ai"], 
     responses = {
         200: {
-            "content": {"image/png": {}}
+            "content": {"image/*": {}}
         },
-        400: {
+        500: {
             "content": {"text/plain": {}}
         }
     },
     response_class=Response)
-async def generate_image(body: dict):   
-    response = get_genai_client().models.generate_content(
-        model=get_generate_image_model_name(),
-        contents=body['contents'],
-        config=types.GenerateContentConfig(
-            response_modalities=['Text', 'Image']
+async def generate_image(body: Annotated[dict, Body(
+                        examples=[
+                            {
+                                "contents": "Generate an image of an apple."
+                            }
+                        ]
+                    )]):   
+    """
+    リクエストされたテキストから画像を生成します。
+    TODO: 画像生成時か生成結果をBytesIOのコンストラクタに渡した後でエラーになってしまう。
+    """
+    try:
+        response = get_genai_client().models.generate_content(
+            model=get_generate_image_model_name(),
+            contents=body['contents'],
+            config=types.GenerateContentConfig(
+                response_modalities=['Text', 'Image']
+            )
         )
-    )
 
-    # 最初の結果だけ返している。
-    for part in response.candidates[0].content.parts:
-        if part.text is not None:
-            return Response(content=part.text, media_type='text/plain')            
-        elif part.inline_data is not None:
-            image_bytes = BytesIO((part.inline_data.data))
-            image_bytes.seek(0)
-            return Response(content=image_bytes.getvalue(), media_type='image/png')
+        # 最初の結果だけ返している。
+        for part in response.candidates[0].content.parts:
+            if part.text is not None:
+                return Response(content=part.text, media_type='text/plain')            
+            elif part.inline_data is not None:
+                image_bytes = BytesIO((part.inline_data.data))
+                image_bytes.seek(0)
+                return Response(content=image_bytes.getvalue(), 
+                                media_type=part.inline_data.mime_type)
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=f"Generative Error: {err=}, {type(err)=}")
 
 @app.post(f"{app_base_path}/text-from-image-url/", tags=["ai"], response_model=GenerationResultText)
 async def generate_test_from_image_url(body: dict):

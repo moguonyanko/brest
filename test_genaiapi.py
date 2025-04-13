@@ -92,7 +92,7 @@ def test_generate_image_from_text():
   テキストから画像生成できるかどうかを確認するための関数です。
   '''
   client = get_genai_client()
-  contents = ('Create photorealistic, fresh images of apples.')
+  contents = ('Generate an image of an apple.')
 
   response = client.models.generate_content(
       model="gemini-2.0-flash-exp-image-generation",
@@ -106,7 +106,9 @@ def test_generate_image_from_text():
     if part.text is not None:
       print(part.text)
     elif part.inline_data is not None:
-      image = Image.open(BytesIO((part.inline_data.data)))
+      print(part.inline_data.mime_type)
+      bytes = BytesIO(part.inline_data.data)
+      image = Image.open(bytes)
       image.save(f"{Path.home()}/share/image/genai/gemini-native-image.png")
       image.show()  
 

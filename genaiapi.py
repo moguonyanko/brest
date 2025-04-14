@@ -10,7 +10,7 @@ from google.genai import types
 from PIL import Image
 from fastapi import FastAPI, HTTPException, status, Body, Depends, Response
 from fastapi.responses import StreamingResponse
-from fastapi import File, UploadFile, WebSocket
+from fastapi import File, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -109,7 +109,20 @@ async def generate_test_from_image(
         file.file.close()
         image.close()
 
-#TODO: closeされるとエラーが発生してしまう。
+async def close_websocket(websocket: WebSocket):
+    try:
+        await websocket.close()
+        print(f"WebSocket connection closed for {websocket.client}")
+    except RuntimeError as e:
+        # 'Unexpected ASGI message' エラーは無視する（既にclose済みとみなす）
+        if "Unexpected ASGI message 'websocket.close'" in str(e):
+            print(f"WebSocket connection already closed (ignoring error): {websocket.client}")
+        else:
+            # その他の RuntimeError はログ出力しておく
+            print(f"RuntimeError during websocket.close(): {e}")
+    except Exception as e:
+            print(f"Error during websocket.close(): {e}")
+
 @app.websocket(f"{app_base_path}/talk/")
 async def talk_generative_ai(websocket: WebSocket):
     await websocket.accept()
@@ -119,10 +132,19 @@ async def talk_generative_ai(websocket: WebSocket):
             max_output_tokens=genaiapi_config['max_output_tokens'],
             temperature=genaiapi_config['temperature']
     ))
-    while True:
-        user_message = await websocket.receive_text()
-        response = chat.send_message(user_message)
-        await websocket.send_text(response.text)
+    try:
+        while True:
+            user_message = await websocket.receive_text()
+            response = chat.send_message(user_message)
+            await websocket.send_text(response.text)
+    except WebSocketDisconnect as disconnect_err: # ブラウザでcloseした。
+        print(f"Client disconnected from {websocket.client}, detail={disconnect_err=}")
+    except RuntimeError as runtime_err:
+        print(f"WebSocket runtime error: {runtime_err=}")
+    finally: 
+        # WebSocketDisconnect以外のエラー発生時はWebSocketが閉じられていない可能性があるので
+        # 念のためWebSocketを閉じる関数を呼びなおす。
+        await close_websocket(websocket)
         
 @app.post(f"{app_base_path}/image/", tags=["ai"], 
     responses = {

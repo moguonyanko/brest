@@ -432,3 +432,54 @@ async def generate_text_similarity(body: Annotated[dict,
         raise HTTPException(status_code=500, 
             detail=f"Generation Error: {err=}, {type(err)=}")
     
+@app.post(f"{app_base_path}/price-prediction", tags=["ai"], response_model=dict,
+          description='ある商品が指定された期間の間にどの程度の価格になるのか推定します。')
+async def generate_price_prediction(body: Annotated[dict, 
+                                    Body(
+                        examples=[
+                            {
+                                "contents": {
+                                    "name": "米",
+                                    "period": "3ヶ月",
+                                    "unit": "円"
+                                }
+                            }
+                        ]
+                    )]):
+    """
+    ある商品が指定された期間の間にどの程度の価格になるのか推定します。
+    """
+    google_search_tool = types.Tool(
+        google_search = types.GoogleSearch()
+    )
+
+    contents = body["contents"]
+    item = contents["name"]
+    period = contents["period"]
+    unit = contents["unit"]
+
+    prompt = f"{item}が{period}経過したら何{unit}になるのか価格を推測してください"
+
+    grounding_config = {            
+        "tools":[google_search_tool],
+        "response_modalities":["TEXT"]
+    }    
+    copied_config = genaiapi_config.copy()
+    copied_config.update(grounding_config)
+
+    response = get_genai_client().models.generate_content(
+        model=get_generate_text_model_name(),
+        contents=prompt,
+        config=types.GenerateContentConfig(**copied_config)
+    )
+
+    # if response.candidates[0].grounding_metadata.search_entry_point is not None:
+    #     print(response.candidates[0].grounding_metadata.search_entry_point.rendered_content)
+
+    text_list = []
+    for each in response.candidates[0].content.parts:
+        text_list.append(each.text)    
+
+    return {
+        "result": text_list
+    }

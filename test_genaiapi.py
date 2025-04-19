@@ -110,6 +110,25 @@ def test_generate_image_from_text():
       bytes = BytesIO(part.inline_data.data)
       image = Image.open(bytes)
       image.save(f"{Path.home()}/share/image/genai/gemini-native-image.png")
-      image.show()  
+      # image.show()  
 
   assert image is not None  
+
+def test_generate_thinking_result():
+  """
+  思考するAPIでテキストを生成できるかのテストです。
+
+  参考:
+  https://ai.google.dev/gemini-api/docs/thinking?hl=ja
+  """
+  client = get_genai_client()
+
+  response = client.models.generate_content(
+      model="gemini-2.5-flash-preview-04-17",
+      contents="Explain the Occam's Razor concept and provide everyday examples of it",
+      config=types.GenerateContentConfig(
+          thinking_config=types.ThinkingConfig()
+      )
+  )
+
+  assert response.text is not None

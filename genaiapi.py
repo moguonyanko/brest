@@ -68,6 +68,9 @@ def get_model_name_summarize_document() -> str:
 def get_model_name_text_embedding() -> str:
     return genaiapi_model_names['text_embedding']
 
+def get_model_name_thinking() -> str:
+    return genaiapi_model_names['thinking']
+
 '''
 生成結果をJSONの形式で返すためのクラス
 '''
@@ -473,6 +476,7 @@ async def generate_price_prediction(body: Annotated[dict,
         config=types.GenerateContentConfig(**copied_config)
     )
 
+    # rendered_contentには関連情報をGoogle検索するためのHTML要素が保持されている。
     # if response.candidates[0].grounding_metadata.search_entry_point is not None:
     #     print(response.candidates[0].grounding_metadata.search_entry_point.rendered_content)
 
@@ -483,3 +487,55 @@ async def generate_price_prediction(body: Annotated[dict,
     return {
         "result": text_list
     }
+
+@app.post(f"{app_base_path}/travel-project", tags=["ai"], response_model=str,
+          description='旅行計画を立案します。')
+async def generate_travel_project(body: Annotated[dict, 
+                                    Body(
+                        examples=[
+                            {
+                                "contents": {
+                                    "position": {
+                                        "start": "横浜",
+                                        "end": "仙台"
+                                    },
+                                    "period": {
+                                        "start": "2025/05/5",
+                                        "end": "2025/05/7"
+                                    },
+                                    "purpose": [
+                                        "美味しいものが食べたい",
+                                        "かえるのピクルスのグッズを買いたい",
+                                        "有名な建物を見に行きたい"
+                                    ]
+                                }
+                            }
+                        ]
+                    )]):
+    contents = body['contents']
+    position = contents['position']
+    period = contents['period']
+    purpose = contents['purpose']
+    prompt = f"""
+    旅行計画を立案してください。
+    出発地は{position['start']}で目的地は{position['end']}です。
+    日程は{period['start']}から{period['end']}です。
+    目的は「{','.join(purpose)}」です。
+    """
+    prompt = prompt.replace('\n', '')
+
+    # グラウンディングを利用して回答を補強する。
+    grounding_config = {            
+        "tools": [types.Tool(google_search = types.GoogleSearch())]
+    }    
+    copied_config = genaiapi_config.copy()
+    copied_config.update(grounding_config)    
+
+    response = get_genai_client().models.generate_content(
+        model=get_model_name_thinking(),
+        contents=prompt,
+        # thinking_budgetを指定するとValidationErrorになる。
+        config=types.GenerateContentConfig(**copied_config)
+    )
+
+    return response.text

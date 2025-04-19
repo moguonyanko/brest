@@ -503,11 +503,7 @@ async def generate_travel_project(body: Annotated[dict,
                                         "start": "2025/05/5",
                                         "end": "2025/05/7"
                                     },
-                                    "purpose": [
-                                        "美味しいものが食べたい",
-                                        "かえるのピクルスのグッズを買いたい",
-                                        "有名な建物を見に行きたい"
-                                    ]
+                                    "purpose": "美味しいものが食べたい,かえるのピクルスのグッズを買いたい,有名な建物を見に行きたい"
                                 }
                             }
                         ]
@@ -520,7 +516,7 @@ async def generate_travel_project(body: Annotated[dict,
     旅行計画を立案してください。
     出発地は{position['start']}で目的地は{position['end']}です。
     日程は{period['start']}から{period['end']}です。
-    目的は「{','.join(purpose)}」です。
+    目的は「{purpose}」です。
     """
     prompt = prompt.replace('\n', '')
 

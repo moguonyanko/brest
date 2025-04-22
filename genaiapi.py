@@ -12,7 +12,6 @@ from fastapi import FastAPI, HTTPException, status, Body, Depends, Response
 from fastapi.responses import StreamingResponse
 from fastapi import File, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
-from fastapi_mcp import FastApiMCP
 
 app = FastAPI(
     title="Brest Generative AI API",
@@ -20,15 +19,6 @@ app = FastAPI(
     summary="Gen AI API by REST",
     version="0.0.1"
 )
-
-mcp = FastApiMCP(
-    app,
-    name="Gen AI API MCP",
-    description="MCP server for the Gen AI API",
-    describe_full_response_schema=True,
-    describe_all_responses=True
-)
-mcp.mount()
 
 app_base_path = '/generate'
 

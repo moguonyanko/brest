@@ -71,6 +71,20 @@
       ],
       "jinja": true,
       "justMyCode": true
+    },
+    {
+      "name": "FastAPI: Practice Fasp-MCP API Debugging",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "practicemcp:app",
+        "--reload",
+        "--port",
+        "9004"
+      ],
+      "jinja": true,
+      "justMyCode": true
     }
   ]
 }

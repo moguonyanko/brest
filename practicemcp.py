@@ -23,16 +23,22 @@ mcp = FastApiMCP(
 )
 mcp.mount()
 
-@app.get("/new/endpoint/", tags=["MCP Sample"], operation_id="new_endpoint", 
+@app.get("/sample/helloworld/", tags=["MCP Sample"], operation_id="hello_world", 
          response_model=dict[str, str])
-async def new_endpoint():
+async def hello_world():
     """
     This endpoint will not be registered as a tool, 
     since it was added after the MCP instance was created
     """
     return {"message": "Hello, world!"}
 
+@app.get("/sample/id/list/", tags=["MCP Sample"], operation_id="get_sample_id_list", 
+         response_model=list[str],
+         description='サンプルID一覧を返します。')
+async def get_sample_id_list():
+    return [
+        'A001', 'B002', 'C003'
+    ]
+
 # But if you re-run the setup, the new endpoints will now be exposed.
 mcp.setup_server()
-
-

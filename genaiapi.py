@@ -165,7 +165,7 @@ async def generate_image(body: Annotated[dict, Body(
                                 "contents": "Generate an image of an apple."
                             }
                         ]
-                    )]):   
+                    )]):  
     """
     リクエストされたテキストから画像を生成します。
     TODO: 画像生成時か生成結果をBytesIOのコンストラクタに渡した後でエラーになってしまう。

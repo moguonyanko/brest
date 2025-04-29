@@ -5,6 +5,14 @@
   "version": "0.2.0",
   "configurations": [
     {
+        "name": "Python: 現在のファイル",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${file}",
+        "console": "integratedTerminal",
+        "justMyCode": true
+    },    
+    {
       "name": "FastAPI: Brest Azure AI Debugging",
       "type": "debugpy",
       "request": "launch",

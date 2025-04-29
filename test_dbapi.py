@@ -5,6 +5,9 @@ test_client = TestClient(app)
 
 def test_inject_sql():
   response = test_client.post("/injectsql/",
-                              json={"sql":"SELECT count(*) FROM postal_codes"})
+                              json={"sql":"SELECT count(*) FROM fruits WHERE id = 0"})
   assert response.status_code == 200
-  assert response.json() == {"results": [[124434]]}
+  assert response.json() == {"results": [[1]]}
+
+if __name__ == '__main__':
+  test_inject_sql()  

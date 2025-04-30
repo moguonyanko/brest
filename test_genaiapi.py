@@ -16,7 +16,7 @@ def test_generate_text():
   response = test_client.post("/generate/text/",
                               json={"contents":"What is one plus one?"})
   assert response.status_code == 200
-  text = response.json()["results"]
+  text = response.json()["text"]
   print(text)
   assert "two" in text.lower()
 

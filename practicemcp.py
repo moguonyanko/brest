@@ -1,5 +1,7 @@
+from typing import Annotated, Any
 from fastapi import FastAPI, HTTPException, status, Body, Depends, Response
 from fastapi_mcp import FastApiMCP
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
 
 """
 ## 参考
@@ -23,7 +25,12 @@ mcp = FastApiMCP(
 )
 mcp.mount()
 
-@app.get("/sample/helloworld/", tags=["MCP Sample"], operation_id="hello_world", 
+# But if you re-run the setup, the new endpoints will now be exposed.
+mcp.setup_server()
+
+APP_BASE = "practicemcp"
+
+@app.get(f"/{APP_BASE}/helloworld/", tags=["MCP Sample"], operation_id="hello_world", 
          response_model=dict[str, str])
 async def hello_world():
     """
@@ -32,7 +39,7 @@ async def hello_world():
     """
     return {"message": "Hello, world!"}
 
-@app.get("/sample/id/list/", tags=["MCP Sample"], operation_id="get_sample_id_list", 
+@app.get(f"/{APP_BASE}/id/list/", tags=["MCP Sample"], operation_id="get_sample_id_list", 
          response_model=list[str],
          description='サンプルID一覧を返します。')
 async def get_sample_id_list():
@@ -40,5 +47,37 @@ async def get_sample_id_list():
         'A001', 'B002', 'C003'
     ]
 
-# But if you re-run the setup, the new endpoints will now be exposed.
-mcp.setup_server()
+class Parameters(BaseModel):
+    x: int = Field(
+        title="x",
+        description="第1パラメータ",
+        example=1
+    )
+    y: int = Field(
+        title="y",
+        description="第2パラメータ",
+        example=2
+    )
+
+@app.post(f"/{APP_BASE}/addnumbers/", tags=["MCP Sample"], operation_id="add_numbers", 
+         response_model=int,
+         description='引数を加算します。xとyは必須です。')
+async def add_numbers(params: Annotated[Parameters, 
+                                    Body(
+                        examples=[ 
+                            Parameters(
+                                x=1,
+                                y=2
+                            )
+                        ]
+                    )]):
+    """
+    引数を加算して返します。
+    """
+    x = params.x
+    y = params.y
+    if x is None or y is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="x and y are required")
+    
+    return x + y
+

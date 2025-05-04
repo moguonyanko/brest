@@ -16,6 +16,5 @@ google-generativeai
 Pillow
 shapely
 pyproj
-geojsontypes
 networkx
 osmnx

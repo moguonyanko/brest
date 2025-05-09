@@ -75,7 +75,9 @@
         "genaiapi:app",
         "--reload",
         "--port",
-        "9003"
+        "9003",
+        "--log-level",
+        "debug"
       ],
       "jinja": true,
       "justMyCode": true

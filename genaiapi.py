@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, status, Body, Depends, Response
 from fastapi.responses import StreamingResponse
 from fastapi import File, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
+from urllib.parse import quote
 
 app = FastAPI(
     title="Brest Generative AI API",
@@ -168,26 +169,32 @@ async def generate_image(body: Annotated[dict, Body(
                     )]):  
     """
     リクエストされたテキストから画像を生成します。
-    TODO: 画像生成時か生成結果をBytesIOのコンストラクタに渡した後でエラーになってしまう。
     """
     try:
         response = get_genai_client().models.generate_content(
             model=get_generate_image_model_name(),
             contents=body['contents'],
             config=types.GenerateContentConfig(
-                response_modalities=['Text', 'Image']
+                response_modalities=['Text', 'Image'] # Textは指定されていないとエラーになる。
             )
         )
 
-        # 最初の結果だけ返している。
+        # 最初のcandidatesだけ返している。
+        image_text = ""
         for part in response.candidates[0].content.parts:
             if part.text is not None:
-                return Response(content=part.text, media_type='text/plain')            
+                # ここでは単に出力しているだけだがWebSocketを使えば作成前のメッセージを返しつつ
+                # 画像も返すことができそうである。ここではカスタムHTTPヘッダーを使って
+                # 画像の説明を返している。
+                # HTTPヘッダーの値はlatin-1が想定されているためquoteでエンコードしないとエラーになる。
+                image_text = quote(part.text)
+                # return Response(content=part.text, media_type='text/plain')            
             elif part.inline_data is not None:
                 image_bytes = BytesIO((part.inline_data.data))
                 image_bytes.seek(0)
                 return Response(content=image_bytes.getvalue(), 
-                                media_type=part.inline_data.mime_type)
+                                media_type=part.inline_data.mime_type,
+                                headers={"X-Generation-Image-Text": image_text})
     except Exception as err:
         raise HTTPException(status_code=500, detail=f"Generative Error: {err=}, {type(err)=}")
 

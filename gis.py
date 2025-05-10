@@ -12,6 +12,7 @@ from geojsontypes import FeatureCollection, Feature
 import networkx as nx
 import osmnx as ox
 from sqlmodel import Field, Session, SQLModel, create_engine, select
+from fastapi_mcp import FastApiMCP
 
 app = FastAPI(
     title="Brest GIS API",
@@ -19,6 +20,18 @@ app = FastAPI(
     summary="Brest GIS API by REST",
     version="0.0.1"
 )
+
+mcp = FastApiMCP(
+    app,
+    name="Practice Fasp-MCP API",
+    description="GIS REST APIをAIクライアントで利用できるようにします。",
+    describe_full_response_schema=True,
+    describe_all_responses=True
+)
+mcp.mount()
+
+# But if you re-run the setup, the new endpoints will now be exposed.
+mcp.setup_server()
 
 @app.get("/hellogis/", tags=["test"])
 async def get_hellogis():
@@ -261,8 +274,11 @@ async def calc_contains(area_geojson: dict, target_geojson: dict):
 
     return { "result": result }
 
-@app.post("/voronoidiagram/", tags=["geometry"])
+@app.post("/voronoidiagram/", tags=["geometry"], operation_id="calc_voronoi_diagram")
 async def calc_voronoi_diagram(points: dict):
+    """
+    Voronoi図を計算する。
+    """
     ps = get_geometris_from_geojson(points)
     mp = MultiPoint(ps)
     result = voronoi_diagram(mp)

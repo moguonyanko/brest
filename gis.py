@@ -285,8 +285,21 @@ async def calc_voronoi_diagram(points: dict):
 
     return { "result": get_geojson_from_geometry(result) }
 
-@app.post("/splitpolygon/", tags=["geometry"])
+@app.post("/splitpolygon/", tags=["geometry"], operation_id="split_polygon_by_line")
 async def split_polygon_by_line(polygon: dict, line: dict):
+    """
+    ポリゴンを線分で分割する。
+
+    Args:
+        polygon: 分割対象のポリゴン GeoJSON
+        例: {"type": "Polygon", "coordinates": [[[0, 0], [0, 10], [10, 10], [10, 0], [0, 0]]]}
+        line: 分割線 GeoJSON
+        例: {"type": "LineString", "coordinates": [[0, 5], [10, 5]]}
+
+    Returns:
+        分割後のポリゴン GeoJSON
+        例: {"type": "MultiPolygon", "coordinates": [[[[0, 0], [0, 5], [10, 5], [10, 0], [0, 0]]], [[[0, 5], [0, 10], [10, 10], [10, 5], [0, 5]]]]}
+    """
     if len(polygon) == 0 or len(line) == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid geometry")
     polygon_geom = get_geometris_from_geojson(polygon)

@@ -156,3 +156,4 @@ def test_generate_speech():
     data = response.candidates[0].content.parts[0].inline_data.data    
 
     assert data is not None
+    assert len(data) > 0

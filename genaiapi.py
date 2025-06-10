@@ -572,4 +572,4 @@ async def generate_speech_from_document(
 
     data = response.candidates[0].content.parts[0].inline_data.data    
 
-    return StreamingResponse(BytesIO(data), media_type="audio/mpeg")
+    return StreamingResponse(BytesIO(data), media_type="audio/wav")

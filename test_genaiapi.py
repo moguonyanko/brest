@@ -132,3 +132,27 @@ def test_generate_thinking_result():
   )
 
   assert response.text is not None
+
+def test_generate_speech():
+    """
+    音声生成APIのテストです。
+
+    参考:
+    https://ai.google.dev/gemini-api/docs/speech-generation?hl=ja
+    """
+    response = get_genai_client().models.generate_content(
+    model="gemini-2.5-flash-preview-tts",
+    contents="みなさんおはようございます。本日もよろしくお願いいたします。",
+    config=types.GenerateContentConfig(
+        response_modalities=["AUDIO"],
+        speech_config=types.SpeechConfig(
+            voice_config=types.VoiceConfig(
+                # voice_nameは規定されている値を指定しないとHTTPエラーとなる。
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name='Kore')
+            )
+        )
+    ))
+
+    data = response.candidates[0].content.parts[0].inline_data.data    
+
+    assert data is not None

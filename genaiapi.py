@@ -72,6 +72,9 @@ def get_model_name_text_embedding() -> str:
 def get_model_name_thinking() -> str:
     return genaiapi_model_names['thinking']
 
+def get_model_generate_speech() -> str:
+    return genaiapi_model_names['generate_speech']
+
 '''
 生成結果をJSONの形式で返すためのクラス
 '''
@@ -542,3 +545,31 @@ async def generate_travel_project(body: Annotated[dict,
     )
 
     return response.text
+
+"""
+StreamingResponseはPydanticモデルではないためresponse_modelに指定するとFastAPIErrorとなる。
+"""
+@app.post(f"{app_base_path}/speech-generation/", tags=["ai"],
+          description='アップロードされたドキュメントから音声を生成します。')
+async def generate_speech_from_document(
+    file: Annotated[UploadFile, File(description="処理対象ドキュメントです。")]
+):
+    doc_bytes = await file.read()
+    contents = types.Part.from_bytes(data=doc_bytes, 
+                                     mime_type=file.content_type)
+
+    response = get_genai_client().models.generate_content(
+    model=get_model_generate_speech(),
+    contents=contents,
+    config=types.GenerateContentConfig(
+        response_modalities=["AUDIO"],
+        speech_config=types.SpeechConfig(
+            voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name='Kore')
+            )
+        )
+    ))
+
+    data = response.candidates[0].content.parts[0].inline_data.data    
+
+    return StreamingResponse(BytesIO(data), media_type="audio/mpeg")

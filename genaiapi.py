@@ -2,13 +2,13 @@ import json
 import requests
 import time
 from io import BytesIO
-from typing import Union, Annotated, Any
+from typing import Annotated
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from google import genai
 from google.genai import types
 from PIL import Image
-from fastapi import FastAPI, HTTPException, status, Body, Depends, Response
+from fastapi import FastAPI, HTTPException, Body, Response
 from fastapi.responses import StreamingResponse
 from fastapi import File, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -555,8 +555,7 @@ async def generate_speech_from_document(
     file: Annotated[UploadFile, File(description="処理対象ドキュメントです。")]
 ):
     doc_bytes = await file.read()
-    contents = types.Part.from_bytes(data=doc_bytes, 
-                                     mime_type=file.content_type)
+    contents = doc_bytes.decode('utf-8')
 
     response = get_genai_client().models.generate_content(
     model=get_model_generate_speech(),

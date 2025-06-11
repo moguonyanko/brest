@@ -571,4 +571,7 @@ async def generate_speech_from_document(
 
     data = response.candidates[0].content.parts[0].inline_data.data    
 
+    if data is None or len(data) == 0:
+        raise HTTPException(status_code=500, detail='音声データが生成できませんでした。')
+    
     return StreamingResponse(BytesIO(data), media_type="audio/wav")

@@ -1,11 +1,10 @@
 from pathlib import Path
 from fastapi.testclient import TestClient
-from genaiapi import app, get_genai_client, get_generate_image_model_name
-from google import genai
+from genaiapi import app, get_genai_client
 from google.genai import types
 from PIL import Image
 from io import BytesIO
-import base64
+import wave
 
 test_client = TestClient(app)
 
@@ -133,6 +132,16 @@ def test_generate_thinking_result():
 
   assert response.text is not None
 
+def write_wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
+  """
+  生成された音声データをローカルで確認できるようにするために書き出す関数です。
+  """
+  with wave.open(filename, "wb") as wf:
+    wf.setnchannels(channels)
+    wf.setsampwidth(sample_width)
+    wf.setframerate(rate)
+    wf.writeframes(pcm)
+
 def test_generate_speech():
     """
     音声生成APIのテストです。
@@ -142,13 +151,13 @@ def test_generate_speech():
     """
     response = get_genai_client().models.generate_content(
     model="gemini-2.5-flash-preview-tts",
-    contents="みなさんおはようございます。本日もよろしくお願いいたします。",
+    contents="みなさんおはようございます！本日は晴天なり。",
     config=types.GenerateContentConfig(
         response_modalities=["AUDIO"],
         speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(
                 # voice_nameは規定されている値を指定しないとHTTPエラーとなる。
-                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name='Kore')
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name='Leda')
             )
         )
     ))
@@ -157,3 +166,7 @@ def test_generate_speech():
 
     assert data is not None
     assert len(data) > 0
+
+    filepath = f"{Path.home()}/share/audio/samplespeech.wav"
+
+    write_wave_file(filepath, data)

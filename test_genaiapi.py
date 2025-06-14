@@ -5,6 +5,9 @@ from google.genai import types
 from PIL import Image
 from io import BytesIO
 import wave
+import pytest
+import soundfile as sf
+import librosa
 
 test_client = TestClient(app)
 
@@ -142,6 +145,8 @@ def write_wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
     wf.setframerate(rate)
     wf.writeframes(pcm)
 
+SAMPLE_SPEECH_MESASGE = "みなさんおはようございます。ほんじつもがんばりましょう。"
+
 def test_generate_speech():
     """
     音声生成APIのテストです。
@@ -151,13 +156,13 @@ def test_generate_speech():
     """
     response = get_genai_client().models.generate_content(
     model="gemini-2.5-flash-preview-tts",
-    contents="みなさんおはようございます！本日は晴天なり。",
+    contents=SAMPLE_SPEECH_MESASGE,
     config=types.GenerateContentConfig(
         response_modalities=["AUDIO"],
         speech_config=types.SpeechConfig(
             voice_config=types.VoiceConfig(
                 # voice_nameは規定されている値を指定しないとHTTPエラーとなる。
-                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name='Leda')
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name='Puck')
             )
         )
     ))
@@ -170,3 +175,40 @@ def test_generate_speech():
     filepath = f"{Path.home()}/share/audio/samplespeech.wav"
 
     write_wave_file(filepath, data)
+
+def wavefile_to_pcmbytes(filepath: str):
+  buffer = BytesIO()
+  y, sr = librosa.load(filepath, sr=16000)
+  sf.write(buffer, y, sr, format='RAW', subtype='PCM_16')
+  buffer.seek(0)
+  audio_bytes = buffer.read()
+  return audio_bytes
+
+@pytest.mark.asyncio
+async def test_generate_text_from_speech_file_by_live_api():
+  """
+  LiveAPIを使って音声ファイルから文字を取得します。
+
+  **参考**
+
+  https://ai.google.dev/gemini-api/docs/live-guide?hl=ja#send-receive-audio
+  """
+  client = get_genai_client()
+  model = "gemini-2.0-flash-live-001"
+  config = {"response_modalities": ["TEXT"]}
+  filepath = f"{Path.home()}/share/audio/samplespeech.wav"
+
+  async with client.aio.live.connect(model=model, config=config) as session:
+    audio_bytes = wavefile_to_pcmbytes(filepath=filepath)
+
+    await session.send_realtime_input(
+       audio=types.Blob(data=audio_bytes, mime_type="audio/pcm;rate=16000")
+    )
+
+    response_text = []
+    async for response in session.receive():
+      if response.text is not None:
+        response_text.append(response.text)
+          
+    joined_response_text = "".join(response_text)      
+    assert joined_response_text == SAMPLE_SPEECH_MESASGE      

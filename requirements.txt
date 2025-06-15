@@ -21,3 +21,4 @@ osmnx
 soundfile
 librosa
 pytest-asyncio
+pytest-timeout

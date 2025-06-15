@@ -185,9 +185,12 @@ def wavefile_to_pcmbytes(filepath: str):
   return audio_bytes
 
 @pytest.mark.asyncio
+@pytest.mark.timeout(30)
 async def test_generate_text_from_speech_file_by_live_api():
   """
   LiveAPIを使って音声ファイルから文字を取得します。
+
+  _session.receive()から結果が返されない問題によりテスト成功しません。_
 
   **参考**
 
@@ -208,7 +211,11 @@ async def test_generate_text_from_speech_file_by_live_api():
     response_text = []
     async for response in session.receive():
       if response.text is not None:
+        print(response.text)
+        assert response.text is not None
+        assert len(response.text) > 0
         response_text.append(response.text)
-          
+
     joined_response_text = "".join(response_text)      
+    print(joined_response_text)
     assert joined_response_text == SAMPLE_SPEECH_MESASGE      

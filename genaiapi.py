@@ -552,7 +552,7 @@ StreamingResponseはPydanticモデルではないためresponse_modelに指定�
 @app.post(f"{app_base_path}/speech-generation/", tags=["ai"],
           description='アップロードされたドキュメントから音声を生成します。')
 async def generate_speech_from_document(
-    file: Annotated[UploadFile, File(description="処理対象ドキュメントです。")]
+    file: Annotated[UploadFile, File(description="処理対象の音声ファイル")]
 ):
     doc_bytes = await file.read()
     contents = doc_bytes.decode('utf-8')

@@ -94,7 +94,7 @@ async def generate_text(body: dict):
     return response.parsed
 
 @app.post(f"{app_base_path}/text-from-image/", tags=["ai"], response_model=GenerationResultText)
-async def generate_test_from_image(
+async def generate_text_from_image(
     file: Annotated[UploadFile, File(description="プロンプトに渡す画像です。")]
 ):
     try:
@@ -202,7 +202,7 @@ async def generate_image(body: Annotated[dict, Body(
         raise HTTPException(status_code=500, detail=f"Generative Error: {err=}, {type(err)=}")
 
 @app.post(f"{app_base_path}/text-from-image-url/", tags=["ai"], response_model=GenerationResultText)
-async def generate_test_from_image_url(body: dict):
+async def generate_text_from_image_url(body: dict):
     try:
         image = requests.get(body['url'])
         content_type = image.headers.get('Content-Type')

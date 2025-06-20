@@ -586,15 +586,20 @@ async def inspect_url_context(body: Annotated[dict,
                                     Body(
                         examples=[
                             {
-                                "url": "https://tenki.jp/",
-                                "operation": "本日の全国の天気を要約してください。"
+                                "contents": [
+                                    {
+                                        "url": "https://tenki.jp/",
+                                        "operation": "本日の全国の天気を要約してください。"
+                                    }
+                                ]
                             }
                         ]
                     )]):
   client = get_genai_client()
   model_id = get_model_url_context()
-  target_url = body['url']
-  operation = body['operation']
+  contents = body['contents'][0] # 現状は最初の要素しか扱わない。
+  target_url = contents['url']
+  operation = contents['operation']
 
   tools = []
   tools.append(Tool(url_context=UrlContext))

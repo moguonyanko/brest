@@ -8,6 +8,7 @@ import wave
 import pytest
 import soundfile as sf
 import librosa
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearch, UrlContext
 
 test_client = TestClient(app)
 
@@ -219,3 +220,34 @@ async def test_generate_text_from_speech_file_by_live_api():
     joined_response_text = "".join(response_text)      
     print(joined_response_text)
     assert joined_response_text == SAMPLE_SPEECH_MESASGE      
+
+def test_extract_url_context():
+  """
+  指定されたURLの内容を読み取って処理を行うAPIのテストです。
+
+  **参考**
+
+  https://ai.google.dev/gemini-api/docs/url-context?hl=ja
+  """
+  client = get_genai_client()
+  model_id = "gemini-2.5-flash"
+  target_url = "https://ipqcache2.shufoo.net/c/2025/06/17/c/5852566107125/index/img/chirashi.pdf?shopId=2206&chirashiId=5852566107125"
+
+  tools = []
+  tools.append(Tool(url_context=UrlContext))
+  tools.append(Tool(google_search=GoogleSearch))
+
+  response = client.models.generate_content(
+      model=model_id,
+      contents=f"{target_url}に記載されている商品の割引情報を抽出してください",
+      config=GenerateContentConfig(
+          tools=tools,
+          response_modalities=["TEXT"],
+      )
+  )
+
+  for each in response.candidates[0].content.parts:
+      print(each.text)
+  # get URLs retrieved for context
+  print(response.candidates[0].url_context_metadata)
+

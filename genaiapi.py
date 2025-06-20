@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from google import genai
 from google.genai import types
+from google.genai.types import Tool, GenerateContentConfig, GoogleSearch, UrlContext
 from PIL import Image
 from fastapi import FastAPI, HTTPException, Body, Response
 from fastapi.responses import StreamingResponse
@@ -74,6 +75,9 @@ def get_model_name_thinking() -> str:
 
 def get_model_generate_speech() -> str:
     return genaiapi_model_names['generate_speech']
+
+def get_model_url_context() -> str:
+    return genaiapi_model_names['url_context']
 
 '''
 生成結果をJSONの形式で返すためのクラス
@@ -575,3 +579,39 @@ async def generate_speech_from_document(
         raise HTTPException(status_code=500, detail='音声データが生成できませんでした。')
     
     return StreamingResponse(BytesIO(data), media_type="audio/wav")
+
+@app.post(f"{app_base_path}/inspect-url-context/", tags=["ai"], 
+          response_model=str)
+async def inspect_url_context(body: Annotated[dict, 
+                                    Body(
+                        examples=[
+                            {
+                                "url": "https://tenki.jp/",
+                                "operation": "本日の全国の天気を要約してください。"
+                            }
+                        ]
+                    )]):
+  client = get_genai_client()
+  model_id = get_model_url_context()
+  target_url = body['url']
+  operation = body['operation']
+
+  tools = []
+  tools.append(Tool(url_context=UrlContext))
+  tools.append(Tool(google_search=GoogleSearch))
+
+  response = client.models.generate_content(
+      model=model_id,
+      contents=f"{target_url}を調べて次の処理を行ってください。{operation}",
+      config=GenerateContentConfig(
+          tools=tools,
+          response_modalities=["TEXT"]
+      )
+  )
+  
+  result_text = []
+  # 各textをデバッグしやすくするためリスト内包表記を用いていない。
+  for each in response.candidates[0].content.parts:
+      result_text.append(each.text)
+
+  return " ".join(result_text)

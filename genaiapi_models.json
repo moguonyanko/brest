@@ -9,6 +9,7 @@
     "summarize_document": "gemini-1.5-flash",
     "text_embedding": "gemini-embedding-exp-03-07",
     "thinking": "gemini-2.5-flash-preview-04-17",
-    "generate_speech": "gemini-2.5-flash-preview-tts"
+    "generate_speech": "gemini-2.5-flash-preview-tts",
+    "url_context": "gemini-2.5-flash"
   }
 }

@@ -620,3 +620,31 @@ async def inspect_url_context(body: Annotated[dict,
       result_text.append(each.text)
 
   return " ".join(result_text)
+
+@app.post(f"{app_base_path}/grounding-text/", tags=["ai"], response_model=str)
+async def generate_text_with_googlesearch_grounding(body: Annotated[dict, 
+                                    Body(
+                        examples=[
+                            {
+                                "contents": "今日の東京の天気を教えてください。"
+                            }
+                        ]
+                    )]):
+    """
+    Google検索を利用して、指定されたテキストに基づいて情報を取得し、回答を生成します。
+    このAPIは、Google検索をツールとして使用し、指定されたテキストを基に情報を検索し、回答を生成します。
+    ツールの使用によって、最新の情報を取得し、より正確な回答を提供することが可能です。
+    例えば、天気予報や最新のニュースなど、リアルタイムで変化する情報を取得するのに適しています。
+    """
+    google_search_tool = types.Tool(
+        google_search = types.GoogleSearch()
+    )
+
+    response = get_genai_client().models.generate_content(
+        model=get_generate_text_model_name(),
+        contents=body['contents'],
+        config=GenerateContentConfig(
+                tools=[google_search_tool]
+            )
+    )
+    return response.text

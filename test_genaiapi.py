@@ -198,7 +198,7 @@ async def test_generate_text_from_speech_file_by_live_api():
   https://ai.google.dev/gemini-api/docs/live-guide?hl=ja#send-receive-audio
   """
   client = get_genai_client()
-  model = "gemini-2.0-flash-live-001"
+  model = "gemini-live-2.5-flash-preview"
   config = {"response_modalities": ["TEXT"]}
   filepath = f"{Path.home()}/share/audio/samplespeech.wav"
 
@@ -212,7 +212,7 @@ async def test_generate_text_from_speech_file_by_live_api():
     response_text = []
     async for response in session.receive():
       if response.text is not None:
-        print(response.text)
+        print(response.text) # ここに入ってこないしタイムアウトもしない。
         assert response.text is not None
         assert len(response.text) > 0
         response_text.append(response.text)

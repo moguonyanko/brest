@@ -12,7 +12,6 @@ sqlmodel
 requests
 numpy
 scikit-learn
-google-generativeai
 Pillow
 shapely
 pyproj
@@ -22,3 +21,4 @@ soundfile
 librosa
 pytest-asyncio
 pytest-timeout
+google-genai

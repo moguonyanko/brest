@@ -9,6 +9,7 @@ import pytest
 import soundfile as sf
 import librosa
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch, UrlContext
+import asyncio
 
 test_client = TestClient(app)
 
@@ -177,10 +178,10 @@ def test_generate_speech():
 
     write_wave_file(filepath, data)
 
-def wavefile_to_pcmbytes(filepath: str):
+def wavefile_to_pcmbytes(filepath: str, load_samplerate: int):
   buffer = BytesIO()
-  y, sr = librosa.load(filepath, sr=16000)
-  sf.write(buffer, y, sr, format='RAW', subtype='PCM_16')
+  data, samplerate = librosa.load(filepath, sr=load_samplerate)
+  sf.write(buffer, data, samplerate, format='RAW', subtype='PCM_16')
   buffer.seek(0)
   audio_bytes = buffer.read()
   return audio_bytes
@@ -203,10 +204,11 @@ async def test_generate_text_from_speech_file_by_live_api():
   filepath = f"{Path.home()}/share/audio/samplespeech.wav"
 
   async with client.aio.live.connect(model=model, config=config) as session:
-    audio_bytes = wavefile_to_pcmbytes(filepath=filepath)
+    load_samplerate = 16000
+    audio_bytes = wavefile_to_pcmbytes(filepath=filepath, load_samplerate=load_samplerate)
 
     await session.send_realtime_input(
-       audio=types.Blob(data=audio_bytes, mime_type="audio/pcm;rate=16000")
+       audio=types.Blob(data=audio_bytes, mime_type=f"audio/pcm;rate={load_samplerate}")
     )
 
     response_text = []
@@ -251,3 +253,60 @@ def test_extract_url_context():
   # get URLs retrieved for context
   print(response.candidates[0].url_context_metadata)
 
+def assert_valid_wave_file(filepath, channels, sampwidth, framerate):
+  with wave.open(filepath, "rb") as check_wf:
+    n_frames = check_wf.getnframes()
+    print(f"WAV情報: チャンネル数={check_wf.getnchannels()}, サンプル幅={check_wf.getsampwidth()}, フレームレート={check_wf.getframerate()}, 総フレーム数={n_frames}")
+          
+    # 設定した値と一致するか確認することも可能
+    assert check_wf.getnchannels() == channels
+    assert check_wf.getsampwidth() == sampwidth
+    assert check_wf.getframerate() == framerate
+
+    assert n_frames > 0, "WAVファイルに音声フレームが含まれていません。"
+    print(f"音声の長さ: {n_frames / check_wf.getframerate():.2f} 秒")
+
+@pytest.mark.asyncio
+async def test_write_audio_file_from_text_with_live_api():
+  """
+  LiveAPIを使ってテキストをwaveファイルに書き出します。
+
+  __書き出したwavファイルに音声フレームが含まれておらずアサーションエラーになります。__
+
+  **参考**
+
+  https://ai.google.dev/gemini-api/docs/live-guide?hl=ja#send-receive-audio
+  """
+  client = get_genai_client()
+  model = "gemini-live-2.5-flash-preview"
+  config = {"response_modalities": ["TEXT"]}
+  filepath = f"{Path.home()}/share/audio/samplespeech_from_text.wav"
+
+  async with client.aio.live.connect(model=model, config=config) as session:
+    channels = 1
+    sampwidth = 2
+    framerate = 24000
+    wf = wave.open(filepath, "wb")
+    wf.setnchannels(channels)
+    wf.setsampwidth(sampwidth)
+    wf.setframerate(framerate)
+
+    message = "Hello, LiveAPI"
+    await session.send_client_content(
+        turns={"role": "user", "parts": [{"text": message}]}, turn_complete=True
+    )
+
+    async for response in session.receive():
+      if response.data is not None:
+        wf.writeframes(response.data)
+    
+    wf.close()
+    
+    assert_valid_wave_file(filepath=filepath, channels=channels, 
+                           sampwidth=sampwidth, framerate=framerate)
+
+# サンプルに倣い__main__経由で呼び出してもLiveAPIは応答を返さない。
+# 参考:
+# https://ai.google.dev/gemini-api/docs/live-guide?hl=ja#send-receive-audio
+if __name__ == "__main__":
+  asyncio.run(test_generate_text_from_speech_file_by_live_api())

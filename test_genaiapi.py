@@ -214,10 +214,12 @@ async def test_generate_text_from_speech_file_by_live_api():
     response_text = []
     async for response in session.receive():
       if response.text is not None:
-        print(response.text) # ここに入ってこないしタイムアウトもしない。
+        print(response.text) # ここに入ってこない。
         assert response.text is not None
         assert len(response.text) > 0
         response_text.append(response.text)
+
+    assert len(response_text) > 0
 
     joined_response_text = "".join(response_text)      
     print(joined_response_text)

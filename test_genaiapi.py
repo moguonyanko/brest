@@ -187,7 +187,7 @@ def wavefile_to_pcmbytes(filepath: str, load_samplerate: int):
   return audio_bytes
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(30)
+@pytest.mark.timeout(15)
 async def test_generate_text_from_speech_file_by_live_api():
   """
   LiveAPIを使って音声ファイルから文字を取得します。
@@ -200,7 +200,7 @@ async def test_generate_text_from_speech_file_by_live_api():
   """
   client = get_genai_client()
   model = "gemini-live-2.5-flash-preview"
-  config = {"response_modalities": ["TEXT"]}
+  config = {"response_modalities": ["AUDIO"]}
   filepath = f"{Path.home()}/share/audio/samplespeech.wav"
 
   async with client.aio.live.connect(model=model, config=config) as session:
@@ -306,8 +306,45 @@ async def test_write_audio_file_from_text_with_live_api():
     assert_valid_wave_file(filepath=filepath, channels=channels, 
                            sampwidth=sampwidth, framerate=framerate)
 
-# サンプルに倣い__main__経由で呼び出してもLiveAPIは応答を返さない。
-# 参考:
-# https://ai.google.dev/gemini-api/docs/live-guide?hl=ja#send-receive-audio
-if __name__ == "__main__":
-  asyncio.run(test_generate_text_from_speech_file_by_live_api())
+@pytest.mark.asyncio
+@pytest.mark.timeout(15)
+async def test_generate_audio_from_user_audio_with_live_api():
+  """
+  LiveAPIを使ってユーザーの音声ファイルから音声を生成します。
+
+  session.receive()から応答が返されずタイムアウトになります。
+  """
+  client = get_genai_client()
+  model = "gemini-2.5-flash-preview-native-audio-dialog"
+  config = {
+    "response_modalities": ["AUDIO"],
+    "system_instruction": "You are a helpful assistant and answer in a friendly tone.",
+  }
+
+  async with client.aio.live.connect(model=model, config=config) as session:
+    framerate = 24000
+    input_filepath = f"{Path.home()}/share/audio/samplespeech.wav"
+    output_filepath = f"{Path.home()}/share/audio/samplespeech_output.wav"
+
+    audio_bytes = wavefile_to_pcmbytes(filepath=input_filepath, load_samplerate=framerate)
+
+    await session.send_realtime_input(
+      audio=types.Blob(data=audio_bytes, mime_type=f"audio/pcm;rate={framerate}")
+    )
+
+    channels = 1
+    sampwidth = 2
+    wf = wave.open(output_filepath, "wb")
+    wf.setnchannels(channels)
+    wf.setsampwidth(sampwidth)
+    wf.setframerate(framerate)
+
+    async for response in session.receive():
+      if response.data is not None:
+        wf.writeframes(response.data)
+        if response.server_content.model_turn is not None:
+          print(response.server_content.model_turn.parts[0].inline_data.mime_type)        
+
+    wf.close()  
+    assert_valid_wave_file(filepath=output_filepath, channels=channels, 
+                           sampwidth=sampwidth, framerate=framerate)

@@ -282,8 +282,6 @@ async def test_write_audio_file_from_text_with_live_api():
     """
     LiveAPIを使ってテキストをwaveファイルに書き出します。
 
-    __書き出したwavファイルに音声フレームが含まれておらずアサーションエラーになります。__
-
     **参考**
 
     https://ai.google.dev/gemini-api/docs/live-guide?hl=ja#send-receive-audio

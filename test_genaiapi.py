@@ -1,6 +1,6 @@
 from pathlib import Path
 from fastapi.testclient import TestClient
-from genaiapi import app, get_genai_client
+from genaiapi import app, get_genai_client, write_wave_file
 from google.genai import types
 from PIL import Image
 from io import BytesIO
@@ -142,17 +142,6 @@ def test_generate_thinking_result():
     assert response.text is not None
 
 
-def write_wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
-    """
-    生成された音声データをローカルで確認できるようにするために書き出す関数です。
-    """
-    with wave.open(filename, "wb") as wf:
-        wf.setnchannels(channels)
-        wf.setsampwidth(sample_width)
-        wf.setframerate(rate)
-        wf.writeframes(pcm)
-
-
 SAMPLE_SPEECH_MESASGE = "みなさんおはようございます。ほんじつもがんばりましょう。"
 
 
@@ -173,8 +162,8 @@ def test_generate_speech():
                     # voice_nameは規定されている値を指定しないとHTTPエラーとなる。
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
                 )
-            ),
-        ),
+            )
+        )
     )
 
     data = response.candidates[0].content.parts[0].inline_data.data

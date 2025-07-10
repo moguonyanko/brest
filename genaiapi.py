@@ -14,6 +14,8 @@ from fastapi.responses import StreamingResponse
 from fastapi import File, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from urllib.parse import quote
+import wave
+from pathlib import Path
 
 app = FastAPI(
     title="Brest Generative AI API",
@@ -623,9 +625,26 @@ async def generate_travel_project(
     return response.text
 
 
-"""
-StreamingResponseはPydanticモデルではないためresponse_modelに指定するとFastAPIErrorとなる。
-"""
+def write_wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
+    """
+    生成された音声データをローカルで確認できるようにするために書き出す関数です。
+    """
+    with wave.open(filename, "wb") as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(sample_width)
+        wf.setframerate(rate)
+        wf.writeframes(pcm)
+
+
+def dump_base64_data_type(data):
+    print(f"Type of data: {type(data)}")
+    print(f"Length of data: {len(data)}")
+    # dataが文字列の場合、最初の50文字程度を表示（長すぎるとログが読みにくいので注意）
+    if isinstance(data, str):
+        print(f"First 50 characters of data: {data[:50]}...")
+    # dataがバイト列の場合、最初の50バイト程度をHex形式で表示
+    elif isinstance(data, bytes):
+        print(f"First 50 bytes of data (hex): {data[:50].hex()}...")
 
 
 @app.post(
@@ -634,8 +653,14 @@ StreamingResponseはPydanticモデルではないためresponse_modelに指定�
     description="アップロードされたドキュメントから音声を生成します。",
 )
 async def generate_speech_from_document(
-    file: Annotated[UploadFile, File(description="処理対象の音声ファイル")],
+    file: Annotated[UploadFile, File(description="処理対象のドキュメント")],
 ):
+    """
+    音声データ自体は生成できているが、最後にレスポンスを返すところで何らかの問題により
+    空のレスポンスが返されてしまう。
+
+    StreamingResponseはPydanticモデルではないためresponse_modelに指定するとFastAPIErrorとなる。
+    """
     doc_bytes = await file.read()
     contents = doc_bytes.decode("utf-8")
 
@@ -653,13 +678,22 @@ async def generate_speech_from_document(
     )
 
     data = response.candidates[0].content.parts[0].inline_data.data
+    dump_base64_data_type(data)
 
     if data is None or len(data) == 0:
         raise HTTPException(
             status_code=500, detail="音声データが生成できませんでした。"
         )
 
-    return StreamingResponse(BytesIO(data), media_type="audio/wav")
+    # ローカルに書き出して正常な音声が生成できているのか確認する。
+    filepath = f"{Path.home()}/share/audio/generatedspeech_from_document_by_fastapi.wav"
+    write_wave_file(filepath, data)
+
+    return StreamingResponse(
+        BytesIO(data),
+        media_type="audio/wav",
+        headers={"Content-Length": str(len(data))},
+    )
 
 
 @app.post(f"{app_base_path}/inspect-url-context/", tags=["ai"], response_model=str)

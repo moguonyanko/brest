@@ -10,12 +10,15 @@ from google.genai import types
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch, UrlContext
 from PIL import Image
 from fastapi import FastAPI, HTTPException, Body, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from starlette.background import BackgroundTask
 from fastapi import File, UploadFile, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from urllib.parse import quote
 import wave
 from pathlib import Path
+import uuid
+import os
 
 app = FastAPI(
     title="Brest Generative AI API",
@@ -625,7 +628,7 @@ async def generate_travel_project(
     return response.text
 
 
-def write_wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
+def write_wave_file(filename: str, pcm, channels=1, rate=24000, sample_width=2):
     """
     生成された音声データをローカルで確認できるようにするために書き出す関数です。
     """
@@ -645,6 +648,22 @@ def dump_base64_data_type(data):
     # dataがバイト列の場合、最初の50バイト程度をHex形式で表示
     elif isinstance(data, bytes):
         print(f"First 50 bytes of data (hex): {data[:50].hex()}...")
+
+
+def write_temp_wave_file(data) -> Path:
+    """
+    一時的なwaveファイルを書き出す関数です。
+    FileResponseを使うために作られました。
+    """
+    temp_dir = Path(f"{Path.home()}/share/audio/tmp/fastapi_audio_cache")
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_filepath = temp_dir / f"speech_{uuid.uuid4()}.wav"
+    write_wave_file(os.fspath(temp_filepath), data)
+    return temp_filepath
+
+
+def remove_file(file_path_name: str):
+    os.unlink(file_path_name)
 
 
 @app.post(
@@ -685,14 +704,13 @@ async def generate_speech_from_document(
             status_code=500, detail="音声データが生成できませんでした。"
         )
 
-    # ローカルに書き出して正常な音声が生成できているのか確認する。
-    filepath = f"{Path.home()}/share/audio/generatedspeech_from_document_by_fastapi.wav"
-    write_wave_file(filepath, data)
+    temp_file_path = write_temp_wave_file(data)
 
-    return StreamingResponse(
-        BytesIO(data),
+    return FileResponse(
+        path=temp_file_path,
         media_type="audio/wav",
-        headers={"Content-Length": str(len(data))},
+        filename="generated_speech.wav",
+        background=BackgroundTask(remove_file, temp_file_path),
     )
 
 

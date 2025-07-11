@@ -785,10 +785,17 @@ async def generate_text_with_googlesearch_grounding(
     return response.text
 
 
-@app.post(f"{app_base_path}/live-api/text-to-speech", tags=["ai"], response_model=str)
+@app.post(f"{app_base_path}/live-api/text-to-speech", tags=["ai"])
 async def generate_speech_from_text_by_live_api(
     body: Annotated[dict, Body(examples=[{"contents": "自己紹介をしてください。"}])],
 ):
+    """
+    リクエストされたテキストから音声を生成します。
+    このAPIは、GeminiのライブAPIを使用して、リアルタイムでテキストから音声を生成します。
+    リクエストボディには、生成したいテキストを含む`contents`フィールドが必要です。
+    音声データは一時的なファイルに保存され、レスポンスとして返されます。
+    音声ファイルはWAV形式で、サンプリングレートは24000Hz、チャンネル数は1（モノラル）で生成されます。
+    """
     client = get_genai_client()
     model = get_model_live_api_speech()
     config = {"response_modalities": ["AUDIO"]}

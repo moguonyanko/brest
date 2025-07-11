@@ -101,6 +101,10 @@ def get_model_url_context() -> str:
     return genaiapi_model_names["url_context"]
 
 
+def get_model_live_api_speech() -> str:
+    return genaiapi_model_names["live_api_speech"]
+
+
 """
 生成結果をJSONの形式で返すためのクラス
 """
@@ -628,38 +632,41 @@ async def generate_travel_project(
     return response.text
 
 
-def write_wave_file(filename: str, pcm, channels=1, rate=24000, sample_width=2):
+def write_wave_file(file_path: Path, frames, channels=1, rate=24000, sample_width=2):
     """
     生成された音声データをローカルで確認できるようにするために書き出す関数です。
     """
-    with wave.open(filename, "wb") as wf:
+    with wave.open(os.fspath(file_path), "wb") as wf:
         wf.setnchannels(channels)
         wf.setsampwidth(sample_width)
         wf.setframerate(rate)
-        wf.writeframes(pcm)
+        wf.writeframes(frames)
 
 
 def dump_base64_data_type(data):
     print(f"Type of data: {type(data)}")
     print(f"Length of data: {len(data)}")
-    # dataが文字列の場合、最初の50文字程度を表示（長すぎるとログが読みにくいので注意）
+    # dataが文字列の場合、最初の50文字程度を表示（長すぎると読みにくいため一部だけ出力）
     if isinstance(data, str):
         print(f"First 50 characters of data: {data[:50]}...")
     # dataがバイト列の場合、最初の50バイト程度をHex形式で表示
     elif isinstance(data, bytes):
         print(f"First 50 bytes of data (hex): {data[:50].hex()}...")
 
+def get_temp_audio_file_path(prefix: str = "") -> Path:
+    temp_dir = Path(f"{Path.home()}/share/audio/tmp/fastapi_audio_cache")
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_file_path = temp_dir / f"{prefix}_speech_{uuid.uuid4()}.wav"
+    return temp_file_path
 
-def write_temp_wave_file(data) -> Path:
+def write_temp_wave_file(frames) -> Path:
     """
     一時的なwaveファイルを書き出す関数です。
     FileResponseを使うために作られました。
     """
-    temp_dir = Path(f"{Path.home()}/share/audio/tmp/fastapi_audio_cache")
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    temp_filepath = temp_dir / f"speech_{uuid.uuid4()}.wav"
-    write_wave_file(os.fspath(temp_filepath), data)
-    return temp_filepath
+    temp_file_path = get_temp_audio_file_path()
+    write_wave_file(temp_file_path, frames)
+    return temp_file_path
 
 
 def remove_file(file_path_name: str):
@@ -696,15 +703,15 @@ async def generate_speech_from_document(
         ),
     )
 
-    data = response.candidates[0].content.parts[0].inline_data.data
-    dump_base64_data_type(data)
+    frames = response.candidates[0].content.parts[0].inline_data.data
+    dump_base64_data_type(frames)
 
-    if data is None or len(data) == 0:
+    if frames is None or len(frames) == 0:
         raise HTTPException(
             status_code=500, detail="音声データが生成できませんでした。"
         )
 
-    temp_file_path = write_temp_wave_file(data)
+    temp_file_path = write_temp_wave_file(frames)
 
     return FileResponse(
         path=temp_file_path,
@@ -776,3 +783,40 @@ async def generate_text_with_googlesearch_grounding(
         config=GenerateContentConfig(tools=[google_search_tool]),
     )
     return response.text
+
+
+@app.post(f"{app_base_path}/live-api/text-to-speech", tags=["ai"], response_model=str)
+async def generate_speech_from_text_by_live_api(
+    body: Annotated[dict, Body(examples=[{"contents": "自己紹介をしてください。"}])],
+):
+    client = get_genai_client()
+    model = get_model_live_api_speech()
+    config = {"response_modalities": ["AUDIO"]}
+    temp_file_path = get_temp_audio_file_path(prefix="text-to-speech")
+
+    async with client.aio.live.connect(model=model, config=config) as session:
+        channels = 1
+        sampwidth = 2
+        framerate = 24000
+        wf = wave.open(os.fspath(temp_file_path), "wb")
+        wf.setnchannels(channels)
+        wf.setsampwidth(sampwidth)
+        wf.setframerate(framerate)
+
+        message = body["contents"]
+        await session.send_client_content(
+            turns={"role": "user", "parts": [{"text": message}]}, turn_complete=True
+        )
+
+        async for response in session.receive():
+            if response.data is not None:
+                wf.writeframes(response.data)
+
+        wf.close()
+
+    return FileResponse(
+        path=temp_file_path,
+        media_type="audio/wav",
+        filename="generated_text_to_speech.wav",
+        background=BackgroundTask(remove_file, temp_file_path),
+    )

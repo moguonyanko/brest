@@ -10,6 +10,7 @@
     "text_embedding": "gemini-embedding-exp-03-07",
     "thinking": "gemini-2.5-flash-preview-04-17",
     "generate_speech": "gemini-2.5-flash-preview-tts",
-    "url_context": "gemini-2.5-flash"
+    "url_context": "gemini-2.5-flash",
+    "live_api_speech": "gemini-2.5-flash-preview-native-audio-dialog"
   }
 }

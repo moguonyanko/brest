@@ -134,7 +134,7 @@ def test_generate_thinking_result():
     client = get_genai_client()
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash-preview-04-17",
+        model="gemini-2.5-pro",
         contents="Explain the Occam's Razor concept and provide everyday examples of it",
         config=types.GenerateContentConfig(thinking_config=types.ThinkingConfig()),
     )

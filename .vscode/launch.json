@@ -95,6 +95,22 @@
       ],
       "jinja": true,
       "justMyCode": true
-    }
+    },
+    {
+      "name": "FastAPI: Web Scraping API Debugging",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "webscraping:app",
+        "--reload",
+        "--port",
+        "9005",
+        "--log-level",
+        "debug"
+      ],
+      "jinja": true,
+      "justMyCode": true
+    }    
   ]
 }

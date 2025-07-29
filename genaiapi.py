@@ -682,10 +682,8 @@ async def generate_speech_from_document(
     file: Annotated[UploadFile, File(description="処理対象のドキュメント")],
 ):
     """
-    音声データ自体は生成できているが、最後にレスポンスを返すところで何らかの問題により
-    空のレスポンスが返されてしまう。
-
     StreamingResponseはPydanticモデルではないためresponse_modelに指定するとFastAPIErrorとなる。
+    StreamingResponseを使うと空の音声データがクライアントに返されてしまうためFileResponseを使用している。
     """
     doc_bytes = await file.read()
     contents = doc_bytes.decode("utf-8")

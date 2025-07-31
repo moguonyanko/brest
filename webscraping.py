@@ -30,3 +30,6 @@ app = FastAPI(
 app_base_path = "/webscraping"
 
 
+@app.get("/hellowebscraping/", tags=["test"])
+async def get_hello_webscraping():
+    return {"message": "Hello Brest Web Scraping!"}

@@ -19,6 +19,7 @@ import wave
 from pathlib import Path
 import uuid
 import os
+from urllib.request import urlopen
 
 app = FastAPI(
     title="Brest Web Scraping API",
@@ -33,3 +34,9 @@ app_base_path = "/webscraping"
 @app.get("/hellowebscraping/", tags=["test"])
 async def get_hello_webscraping():
     return {"message": "Hello Brest Web Scraping!"}
+
+
+@app.get("/pagecontents/", tags=["url"])
+async def get_page_contents(url: str):
+    contents = urlopen(url)
+    return {"contents": contents.read()}

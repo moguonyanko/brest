@@ -58,7 +58,7 @@ async def ws_get_page_contents(url: str):
 def get_title(contents) -> str:
     try:
         bs = BeautifulSoup(contents, "html.parser")
-        return bs.body.h1.contents[0]
+        return bs.body.h1.get_text()
     except AttributeError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.args[0]

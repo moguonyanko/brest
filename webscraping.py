@@ -55,10 +55,19 @@ async def ws_get_page_contents(url: str):
     return {"contents": read_all_contents(url)}
 
 
+def parse_page_contents(contents):
+    """
+    urlopenで取得した結果をパースします。現在はBeautifulSoupとhtml.parserを常に使います。
+    他の方法でパースしたい場合は設定ファイルなどで切り替えられるようにします。
+    """
+    result = BeautifulSoup(contents, "html.parser")
+    return result
+
+
 def get_title(contents) -> str:
     try:
-        bs = BeautifulSoup(contents, "html.parser")
-        return bs.body.h1.get_text()
+        parsed_contents = parse_page_contents(contents)
+        return parsed_contents.body.h1.get_text()
     except AttributeError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.args[0]
@@ -66,8 +75,8 @@ def get_title(contents) -> str:
 
 
 def get_image_src_list(contents) -> list[str]:
-    bs = BeautifulSoup(contents, "html.parser")
-    images = bs.find_all("img")
+    parsed_contents = parse_page_contents(contents)
+    images = parsed_contents.find_all("img")
     srclist = []
     for img in images:
         src = img.get("src")

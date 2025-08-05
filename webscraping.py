@@ -5,6 +5,7 @@ PythonによるWebスクレイピング 第3版
 https://www.oreilly.co.jp/books/9784814401222/
 """
 
+import re
 import json
 import requests
 import time
@@ -74,9 +75,15 @@ def get_title(contents) -> str:
         )
 
 
-def get_image_src_list(contents) -> list[str]:
+def get_image_src_list(contents, image_format) -> list[str]:
     parsed_contents = parse_page_contents(contents)
-    images = parsed_contents.find_all("img")
+    if image_format is not None:
+        images = parsed_contents.find_all(
+            "img", {"src": re.compile(rf".*\.{image_format}$")}
+        )
+    else:
+        images = parsed_contents.find_all("img")
+
     srclist = []
     for img in images:
         src = img.get("src")
@@ -91,7 +98,7 @@ async def ws_get_page_title(url: str):
 
 
 @app.get("/pageimgsrclist/", tags=["url"], response_model=dict[str, list[str]])
-async def ws_get_page_image_src_list(url: str):
+async def ws_get_page_image_src_list(url: str, format: str = None):
     contents = read_all_contents(url)
-    imgsrclist = get_image_src_list(contents)
+    imgsrclist = get_image_src_list(contents, format)
     return {"imgsrclist": imgsrclist}

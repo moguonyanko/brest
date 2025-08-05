@@ -24,9 +24,19 @@ def test_error_http_exception_when_not_found_title():
     assert response.status_code == 400
 
 
-def test_get_page_title():
+def test_get_page_image_list():
     response = test_client.get("/pageimgsrclist/?url=http://localhost/webxam/css/multicolumnlayout/")
     assert response.status_code == 200
     srclist = response.json()["imgsrclist"]
     assert srclist is not None
     assert len(srclist) > 0
+
+def test_get_page_png_image_list():
+    format = "png"
+    response = test_client.get(f"/pageimgsrclist/?url=http://localhost/webxam/css/multicolumnlayout/&format={format}")
+    assert response.status_code == 200
+    srclist = response.json()["imgsrclist"]
+    assert srclist is not None
+    assert len(srclist) > 0
+    for src in srclist:
+        assert src.endswith(format)

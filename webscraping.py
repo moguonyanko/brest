@@ -65,7 +65,24 @@ def get_title(contents) -> str:
         )
 
 
+def get_image_src_list(contents) -> list[str]:
+    bs = BeautifulSoup(contents, "html.parser")
+    images = bs.find_all("img")
+    srclist = []
+    for img in images:
+        src = img.get("src")
+        srclist.append(src)
+    return srclist
+
+
 @app.get("/pagetitle/", tags=["url"], response_model=dict[str, str])
 async def ws_get_page_title(url: str):
     contents = read_all_contents(url)
     return {"title": get_title(contents)}
+
+
+@app.get("/pageimgsrclist/", tags=["url"], response_model=dict[str, list[str]])
+async def ws_get_page_image_src_list(url: str):
+    contents = read_all_contents(url)
+    imgsrclist = get_image_src_list(contents)
+    return {"imgsrclist": imgsrclist}

@@ -25,8 +25,8 @@ def test_error_http_exception_when_not_found_title():
 
 
 def test_get_page_title():
-    response = test_client.get("/pagetitle/?url=http://localhost/webxam")
+    response = test_client.get("/pageimgsrclist/?url=http://localhost/webxam/css/multicolumnlayout/")
     assert response.status_code == 200
-    title = response.json()["title"]
-    assert title is not None
-    assert title == "WebXam"
+    srclist = response.json()["imgsrclist"]
+    assert srclist is not None
+    assert len(srclist) > 0

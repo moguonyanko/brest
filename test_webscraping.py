@@ -25,18 +25,35 @@ def test_error_http_exception_when_not_found_title():
 
 
 def test_get_page_image_list():
-    response = test_client.get("/pageimgsrclist/?url=http://localhost/webxam/css/multicolumnlayout/")
+    response = test_client.get(
+        "/pageimgsrclist/?url=http://localhost/webxam/css/multicolumnlayout/"
+    )
     assert response.status_code == 200
     srclist = response.json()["imgsrclist"]
     assert srclist is not None
     assert len(srclist) > 0
 
+
 def test_get_page_png_image_list():
     format = "png"
-    response = test_client.get(f"/pageimgsrclist/?url=http://localhost/webxam/css/multicolumnlayout/&format={format}")
+    response = test_client.get(
+        f"/pageimgsrclist/?url=http://localhost/webxam/css/multicolumnlayout/&format={format}"
+    )
     assert response.status_code == 200
     srclist = response.json()["imgsrclist"]
     assert srclist is not None
     assert len(srclist) > 0
     for src in srclist:
         assert src.endswith(format)
+
+
+def test_get_pdf_contents():
+    # sample_url = "https://rirs.or.jp/tenken-db/pdf/api_specification.pdf"
+    sample_url = "http://localhost/webxam/document/samplebook.pdf"
+    response = test_client.get(f"/pdfcontents/?url={sample_url}")
+    assert response.status_code == 200
+    pages = response.json()
+    assert pages is not None
+    assert len(pages) > 0
+    for page in pages:
+        print(page)

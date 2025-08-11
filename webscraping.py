@@ -24,9 +24,11 @@ import wave
 from pathlib import Path
 import uuid
 import os
-from urllib.request import urlopen
+from urllib.request import urlopen, urlretrieve
 from urllib.error import URLError
 from bs4 import BeautifulSoup
+from pypdf import PdfReader
+import tempfile
 
 app = FastAPI(
     title="Brest Web Scraping API",
@@ -102,3 +104,17 @@ async def ws_get_page_image_src_list(url: str, format: str = None):
     contents = read_all_contents(url)
     imgsrclist = get_image_src_list(contents, format)
     return {"imgsrclist": imgsrclist}
+
+
+@app.get("/pdfcontents/", tags=["url"], response_model=list[str])
+async def get_pdf_contents(url: str):
+    # ユニークな一時ファイル名を自動生成させる。
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_file:
+        file_name = tmp_file.name
+        try:
+            urlretrieve(url, file_name)
+            reader = PdfReader(file_name)
+            return [page.extract_text() for page in reader.pages]
+        finally:
+            if os.path.exists(file_name):
+                os.remove(file_name)

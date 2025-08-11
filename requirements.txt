@@ -23,3 +23,4 @@ pytest-asyncio
 pytest-timeout
 google-genai
 bs4
+pypdf

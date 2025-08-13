@@ -24,3 +24,5 @@ pytest-timeout
 google-genai
 bs4
 pypdf
+pandas
+nltk

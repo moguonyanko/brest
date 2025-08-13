@@ -29,6 +29,7 @@ from urllib.error import URLError
 from bs4 import BeautifulSoup
 from pypdf import PdfReader
 import tempfile
+from nltk import word_tokenize, Text
 
 app = FastAPI(
     title="Brest Web Scraping API",
@@ -118,3 +119,9 @@ async def get_pdf_contents(url: str):
         finally:
             if os.path.exists(file_name):
                 os.remove(file_name)
+
+
+@app.get("/tokenizedwords/", tags=["text"], response_model=list[str])
+async def get_tokenized_words(text: str):
+    tokens = word_tokenize(text)
+    return Text(tokens)

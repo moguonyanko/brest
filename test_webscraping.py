@@ -57,3 +57,16 @@ def test_get_pdf_contents():
     assert len(pages) > 0
     for page in pages:
         print(page)
+
+
+def test_get_tokenized_words():
+    # TODO: 日本語の分割はできない？
+    text = "私は甘いお菓子が好きです"
+    # text = "彼は𩸽を𠮟る𠮷野家に勤めている"
+    # 英語の文章は分割できる。
+    # text = "I have a pen"
+    response = test_client.get(f"/tokenizedwords/?text={text}")
+    assert response.status_code == 200
+    words = response.json()
+    assert words is not None
+    assert len(words) > 1

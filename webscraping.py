@@ -129,10 +129,9 @@ async def get_tokenized_words(text: str):
 
 @app.get("/nouninsentences/", tags=["text"], response_model=dict[str, list[str]])
 async def get_noun_in_sentences(
-    sentences: Annotated[
-        list[str],
-        Query(..., example=["My name is Taro", "My students are studying hard"]),
-    ],
+    sentences: list[str] = Query(
+        ..., example=["My name is Taro", "My students are studying hard"]
+    ),
 ):
     """
     文の中の名詞を抽出します。

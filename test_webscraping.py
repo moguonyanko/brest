@@ -66,3 +66,19 @@ def test_get_tokenized_words():
     words = response.json()
     assert words is not None
     assert len(words) == 4
+
+
+def test_get_noun_in_sentences():
+    """
+    文の中の名詞を抽出するAPIのテストです。
+    """
+    sentences = ["My name is Taro", "My students are studying hard"]
+    response = test_client.get(
+        "/nouninsentences/",
+        params={"sentences": sentences}
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result is not None
+    assert len(result) > 0
+    print(result)

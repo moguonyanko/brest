@@ -14,7 +14,7 @@ from typing import Annotated
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from PIL import Image
-from fastapi import FastAPI, HTTPException, Body, Response, status, Depends
+from fastapi import FastAPI, HTTPException, Body, Response, status, Depends, Query
 from fastapi.responses import StreamingResponse, FileResponse
 from starlette.background import BackgroundTask
 from fastapi import File, UploadFile, WebSocket, WebSocketDisconnect
@@ -29,7 +29,7 @@ from urllib.error import URLError
 from bs4 import BeautifulSoup
 from pypdf import PdfReader
 import tempfile
-from nltk import word_tokenize, Text
+from nltk import word_tokenize, Text, pos_tag
 
 app = FastAPI(
     title="Brest Web Scraping API",
@@ -125,3 +125,25 @@ async def get_pdf_contents(url: str):
 async def get_tokenized_words(text: str):
     tokens = word_tokenize(text)
     return Text(tokens)
+
+
+@app.get("/nouninsentences/", tags=["text"], response_model=dict[str, list[str]])
+async def get_noun_in_sentences(
+    sentences: Annotated[
+        list[str],
+        Query(..., example=["My name is Taro", "My students are studying hard"]),
+    ],
+):
+    """
+    文の中の名詞を抽出します。
+    sentences: strのリストで、各文を含む。
+    戻り値は、名詞の品詞タグとその名詞のリストを含む辞書。
+    """
+    nouns_tags = ["NN", "NNS", "NNP", "NNPS"]
+    result = {}
+    for sentence in sentences:
+        for word, tag in pos_tag(word_tokenize(sentence)):
+            if tag in nouns_tags:
+                result.setdefault(tag, []).append(word)
+
+    return result

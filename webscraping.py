@@ -30,6 +30,8 @@ from bs4 import BeautifulSoup
 from pypdf import PdfReader
 import tempfile
 from nltk import word_tokenize, Text, pos_tag
+from PIL import Image
+import pytesseract
 
 app = FastAPI(
     title="Brest Web Scraping API",
@@ -146,3 +148,18 @@ async def get_noun_in_sentences(
                 result.setdefault(tag, []).append(word)
 
     return result
+
+@app.post("/imagetext/", tags=["image"], response_model=dict[str, str])
+async def get_text_in_image(image: UploadFile = File(...)):
+    """
+    アップロードされた画像からテキストを抽出します。
+    """
+    try:
+        contents = await image.read()
+        pil_image = Image.open(BytesIO(contents))
+    except Exception as e:
+        return {"error": f"画像の読み込みに失敗しました: {e}"}
+
+    extracted_text = pytesseract.image_to_string(pil_image, lang='jpn')
+
+    return {"text": extracted_text}

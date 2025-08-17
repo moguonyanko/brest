@@ -6,3 +6,4 @@ venv/
 .pytest_cache/
 genaiapi_keys.json
 
+.DS_Store

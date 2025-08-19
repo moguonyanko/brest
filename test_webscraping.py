@@ -117,3 +117,20 @@ def test_get_text_in_image():
         assert "𩸽" in expected_text
         assert "𠮟" in expected_text
         assert "𠮷" in expected_text
+
+
+def test_get_text_from_image_url():
+    """
+    画像URLから画像のテキストを読み込むAPIのテストです。
+    """
+    with TestClient(app) as test_client:
+        url = "https://asset.watch.impress.co.jp/img/ipw/docs/2039/347/open1_o.jpg"
+        response = test_client.get("/imageurltext/", params={"url": url})
+        assert response.status_code == 200
+        assert "text" in response.json()
+
+        result = response.json()["text"]
+        assert result is not None
+
+        assert len(result) > 0
+        print(result)

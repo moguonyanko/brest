@@ -149,17 +149,46 @@ async def get_noun_in_sentences(
 
     return result
 
+
+async def to_pil_image(image):
+    contents = await image.read()
+    pil_image = Image.open(BytesIO(contents))
+    return pil_image
+
+
+def extract_text_from_image(pil_image):
+    """
+    引数のPIL Imggeからテキストを抽出します。現時点では日本語のテキストを対象とします。
+    """
+    return pytesseract.image_to_string(pil_image, lang="jpn")
+
+
 @app.post("/imagetext/", tags=["image"], response_model=dict[str, str])
 async def get_text_in_image(image: UploadFile = File(...)):
     """
     アップロードされた画像からテキストを抽出します。
     """
     try:
-        contents = await image.read()
-        pil_image = Image.open(BytesIO(contents))
+        pil_image = to_pil_image(image)
     except Exception as e:
         return {"error": f"画像の読み込みに失敗しました: {e}"}
 
-    extracted_text = pytesseract.image_to_string(pil_image, lang='jpn')
+    return {"text": extract_text_from_image(pil_image)}
 
-    return {"text": extracted_text}
+
+@app.get("/imageurltext/", tags=["url"], response_model=dict[str, str])
+async def get_text_in_image_url(
+    url: str = Query(
+        ...,
+        example="https://asset.watch.impress.co.jp/img/ipw/docs/2039/347/open1_o.jpg",
+    ),
+):
+    with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp_file:
+        file_name = tmp_file.name
+        try:
+            urlretrieve(url, file_name)
+            pil_image = Image.open(file_name)
+            return {"text": extract_text_from_image(pil_image)}
+        finally:
+            if os.path.exists(file_name):
+                os.remove(file_name)

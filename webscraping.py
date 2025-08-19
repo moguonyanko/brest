@@ -186,9 +186,21 @@ async def get_text_in_image_url(
     with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp_file:
         file_name = tmp_file.name
         try:
-            urlretrieve(url, file_name)
-            pil_image = Image.open(file_name)
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+
+            content_type = response.headers.get('Content-Type', '')
+            if not content_type.startswith('image/'):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error: Content-Type '{content_type}' is not an image."
+                )
+
+            pil_image = Image.open(BytesIO(response.content))
             return {"text": extract_text_from_image(pil_image)}
+        except Exception as e:            
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.args[0]
+            )
         finally:
             if os.path.exists(file_name):
                 os.remove(file_name)

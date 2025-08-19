@@ -119,18 +119,27 @@ def test_get_text_in_image():
         assert "𠮷" in expected_text
 
 
+def assert_extract_text_from_image_url(test_client, url):
+    response = test_client.get("/imageurltext/", params={"url": url})
+    assert response.status_code == 200
+    assert "text" in response.json()
+
+    result = response.json()["text"]
+    assert result is not None
+
+    assert len(result) > 0
+    print(result)
+
+
 def test_get_text_from_image_url():
     """
     画像URLから画像のテキストを読み込むAPIのテストです。
     """
     with TestClient(app) as test_client:
-        url = "https://asset.watch.impress.co.jp/img/ipw/docs/2039/347/open1_o.jpg"
-        response = test_client.get("/imageurltext/", params={"url": url})
-        assert response.status_code == 200
-        assert "text" in response.json()
+        direct_image_url = (
+            "https://asset.watch.impress.co.jp/img/ipw/docs/2039/347/open1_o.jpg"
+        )
+        action_image_url = "https://src.doda.jp/DodaCommon/View/ImageDisplay.action?type=01&imgid=4011209955"
 
-        result = response.json()["text"]
-        assert result is not None
-
-        assert len(result) > 0
-        print(result)
+        assert_extract_text_from_image_url(test_client, direct_image_url)
+        assert_extract_text_from_image_url(test_client, action_image_url)

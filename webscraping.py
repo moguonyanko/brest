@@ -169,9 +169,12 @@ async def get_text_in_image(image: UploadFile = File(...)):
     アップロードされた画像からテキストを抽出します。
     """
     try:
-        pil_image = to_pil_image(image)
+        pil_image = await to_pil_image(image)
     except Exception as e:
-        return {"error": f"画像の読み込みに失敗しました: {e}"}
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"画像の読み込みに失敗しました: {e}",
+        )
 
     return {"text": extract_text_from_image(pil_image)}
 
@@ -189,15 +192,16 @@ async def get_text_in_image_url(
             response = requests.get(url, stream=True)
             response.raise_for_status()
 
-            content_type = response.headers.get('Content-Type', '')
-            if not content_type.startswith('image/'):
+            content_type = response.headers.get("Content-Type", "")
+            if not content_type.startswith("image/"):
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error: Content-Type '{content_type}' is not an image."
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Error: Content-Type '{content_type}' is not an image.",
                 )
 
             pil_image = Image.open(BytesIO(response.content))
             return {"text": extract_text_from_image(pil_image)}
-        except Exception as e:            
+        except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.args[0]
             )

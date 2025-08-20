@@ -27,3 +27,5 @@ pypdf
 pandas
 nltk
 pytesseract
+httpx
+playwright

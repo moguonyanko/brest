@@ -133,7 +133,7 @@ async def get_tokenized_words(text: str):
 @app.get("/nouninsentences/", tags=["text"], response_model=dict[str, list[str]])
 async def get_noun_in_sentences(
     sentences: list[str] = Query(
-        ..., example=["My name is Taro", "My students are studying hard"]
+        ..., examples=["My name is Taro", "My students are studying hard"]
     ),
 ):
     """
@@ -184,7 +184,7 @@ async def get_text_in_image(image: UploadFile = File(...)):
 async def get_text_in_image_url(
     url: str = Query(
         ...,
-        example="https://asset.watch.impress.co.jp/img/ipw/docs/2039/347/open1_o.jpg",
+        examples="https://asset.watch.impress.co.jp/img/ipw/docs/2039/347/open1_o.jpg",
     ),
 ):
     with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp_file:

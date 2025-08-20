@@ -187,26 +187,21 @@ async def get_text_in_image_url(
         examples="https://asset.watch.impress.co.jp/img/ipw/docs/2039/347/open1_o.jpg",
     ),
 ):
-    with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp_file:
-        file_name = tmp_file.name
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url)
-                response.raise_for_status()
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()
 
-            content_type = response.headers.get("Content-Type", "")
-            if not content_type.startswith("image/"):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Error: Content-Type '{content_type}' is not an image.",
-                )
-
-            pil_image = Image.open(BytesIO(response.content))
-            return {"text": extract_text_from_image(pil_image)}
-        except Exception as e:
+        content_type = response.headers.get("Content-Type", "")
+        if not content_type.startswith("image/"):
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=e.args[0]
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Error: Content-Type '{content_type}' is not an image.",
             )
-        finally:
-            if os.path.exists(file_name):
-                os.remove(file_name)
+
+        pil_image = Image.open(BytesIO(response.content))
+        return {"text": extract_text_from_image(pil_image)}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

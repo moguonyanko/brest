@@ -10,7 +10,7 @@ import json
 import requests
 import time
 from io import BytesIO
-from typing import Annotated
+from typing import Annotated, Tuple
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from PIL import Image
@@ -33,6 +33,7 @@ from nltk import word_tokenize, Text, pos_tag
 from PIL import Image
 import pytesseract
 import httpx
+from playwright.async_api import async_playwright, Page
 
 app = FastAPI(
     title="Brest Web Scraping API",
@@ -205,3 +206,83 @@ async def get_text_in_image_url(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
+
+
+async def _search_shops_by_station(page: Page):
+    station_selector = "#sectionSideSearchBox > div > div.s_side_search_keyword.s_side_search_keyword_area > form > div > div > div > input"
+    await page.wait_for_selector(station_selector, state="visible")
+    await page.fill(station_selector, "浜松町駅")
+
+    search_button = "#sectionSideSearchBox > div > div.s_side_search_keyword.s_side_search_keyword_area > form > div > input"
+    await page.wait_for_selector(search_button, state="visible")
+    await page.click(search_button)
+
+
+async def _select_station(page: Page):
+    target_station_link = page.get_by_text("浜松町駅（ＪＲ山手線）")
+    await target_station_link.wait_for(state="visible")
+    await target_station_link.click()
+
+
+async def _extract_supermarkets(page: Page):
+    sort_selector = "#main-content-inner > div.content_main_section.section_box_type_E > div > ul > li.chirashi_list_option_sort > span > a"
+    await page.wait_for_selector(sort_selector, state="visible")
+    await page.click(sort_selector)
+
+    sort_link = page.get_by_text("近い順")
+    await page.wait_for_selector(sort_link, state="visible")
+    await sort_link.click()
+
+    shop_type_selector = "#main-content-inner > div.content_main_section.section_box_type_E > div > ul > li.chirashi_list_option_filters.btn_sp_ui.btn_sp_ui_A > a"
+    await page.wait_for_selector(shop_type_selector, state="visible")
+    await page.click(shop_type_selector)
+
+    all_type_link = "#pop_menu_1 > div > div > div > ul > li.cfs_item.cfs_item_all.cfs_item_level_1 > a"
+    await page.wait_for_selector(all_type_link, state="visible")
+    await page.click(all_type_link)
+
+    super_link = page.get_by_text("スーパー")
+    await page.wait_for_selector(super_link, state="visible")
+    await page.click(super_link)
+
+    extract_button = (
+        "#pop_menu_1 > div > div > div > div.category_filters_foot > div > a"
+    )
+    await page.wait_for_selector(extract_button, state="visible")
+    await page.click(extract_button)
+
+
+@app.get("/tokubai/", tags=["url"], response_model=dict[str, Tuple[str, int]])
+async def get_tokubai_info(
+    shops: list[str] = Query(
+        ...,
+        shops=["ライフ"],
+    ),
+):
+    target_url = "https://www.shufoo.net/"
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            # headless=True,
+            # テスト用
+            headless=False,
+            slow_mo=1000,
+        )
+        page = await browser.new_page()
+
+        try:
+            await page.goto(target_url, wait_until="domcontentloaded")
+
+            await _search_shops_by_station(page)
+
+            await _select_station(page)
+
+            await _extract_supermarkets(page)
+
+            return {"result": ("ok", 100)}
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            )
+        finally:
+            # ブラウザを閉じる
+            await browser.close()

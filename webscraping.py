@@ -230,7 +230,7 @@ async def _extract_supermarkets(page: Page):
     await page.click(sort_selector)
 
     sort_link = page.get_by_text("近い順")
-    await page.wait_for_selector(sort_link, state="visible")
+    await sort_link.wait_for(state="visible")
     await sort_link.click()
 
     shop_type_selector = "#main-content-inner > div.content_main_section.section_box_type_E > div > ul > li.chirashi_list_option_filters.btn_sp_ui.btn_sp_ui_A > a"
@@ -241,9 +241,9 @@ async def _extract_supermarkets(page: Page):
     await page.wait_for_selector(all_type_link, state="visible")
     await page.click(all_type_link)
 
-    super_link = page.get_by_text("スーパー")
-    await page.wait_for_selector(super_link, state="visible")
-    await page.click(super_link)
+    super_link_selector = "#pop_menu_1 > div > div > div > ul > li.cfs_item.cfs_item_level_2.cfs_item_on > a"
+    await page.wait_for_selector(super_link_selector, state="visible")
+    await page.click(super_link_selector)
 
     extract_button = (
         "#pop_menu_1 > div > div > div > div.category_filters_foot > div > a"
@@ -280,6 +280,7 @@ async def get_tokubai_info(
 
             return {"result": ("ok", 100)}
         except Exception as e:
+            print(e)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
             )

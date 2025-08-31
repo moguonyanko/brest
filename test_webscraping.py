@@ -151,3 +151,7 @@ def test_get_tokubai_infomation():
         response = test_client.get("/tokubai/", params={"shops": ["ライフ"]})
 
         assert response.status_code == 200
+
+        json = response.json()
+        assert "result" in json
+        assert json["result"] == {"OK": 200}

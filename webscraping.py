@@ -241,7 +241,7 @@ async def _extract_supermarkets(page: Page):
     await page.wait_for_selector(all_type_link, state="visible")
     await page.click(all_type_link)
 
-    super_link_selector = "#pop_menu_1 > div > div > div > ul > li.cfs_item.cfs_item_level_2.cfs_item_on > a"
+    super_link_selector = "#pop_menu_1 > div > div > div > ul > li:nth-child(2) > a > span"
     await page.wait_for_selector(super_link_selector, state="visible")
     await page.click(super_link_selector)
 
@@ -252,7 +252,7 @@ async def _extract_supermarkets(page: Page):
     await page.click(extract_button)
 
 
-@app.get("/tokubai/", tags=["url"], response_model=dict[str, Tuple[str, int]])
+@app.get("/tokubai/", tags=["url"], response_model=dict[str, dict[str, int]])
 async def get_tokubai_info(
     shops: list[str] = Query(
         ...,
@@ -262,10 +262,10 @@ async def get_tokubai_info(
     target_url = "https://www.shufoo.net/"
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            # headless=True,
+            headless=True,
             # テスト用
-            headless=False,
-            slow_mo=1000,
+            # headless=False,
+            # slow_mo=1000,
         )
         page = await browser.new_page()
 
@@ -278,7 +278,11 @@ async def get_tokubai_info(
 
             await _extract_supermarkets(page)
 
-            return {"result": ("ok", 100)}
+            await page.screenshot(path="dist/debug_screenshot_before_super_click.png")
+
+            return {"result": {
+                "OK": 200
+            }}
         except Exception as e:
             print(e)
             raise HTTPException(

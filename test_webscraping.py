@@ -153,5 +153,4 @@ def test_get_tokubai_infomation():
         assert response.status_code == 200
 
         json = response.json()
-        assert "result" in json
-        assert json["result"] == {"OK": 200}
+        assert json is not None

@@ -241,7 +241,9 @@ async def _extract_supermarkets(page: Page):
     await page.wait_for_selector(all_type_link, state="visible")
     await page.click(all_type_link)
 
-    super_link_selector = "#pop_menu_1 > div > div > div > ul > li:nth-child(2) > a > span"
+    super_link_selector = (
+        "#pop_menu_1 > div > div > div > ul > li:nth-child(2) > a > span"
+    )
     await page.wait_for_selector(super_link_selector, state="visible")
     await page.click(super_link_selector)
 
@@ -252,11 +254,39 @@ async def _extract_supermarkets(page: Page):
     await page.click(extract_button)
 
 
+async def get_chirashi_text(page):
+    element = page.locator("#chirashi-area")
+    image_bytes = await element.screenshot()
+    image = Image.open(BytesIO(image_bytes))
+    return extract_text_from_image(image)
+
+
+async def _get_chirashi_data(page: Page, shop_names: list[str]):
+    """
+    チラシの内容を返します。
+    """
+    chirashi_data = {}
+
+    for shop_name in shop_names:
+        shop_links = page.get_by_text(shop_name)
+        shop_link_count = await shop_links.count()
+        if shop_link_count > 0:
+            all_shop_links = await shop_links.all()
+            for shop_link in all_shop_links:
+                await shop_link.wait_for(state="visible")
+                await shop_link.click()
+                shop_key = await shop_link.text_content()
+                chirashi_data[shop_key] = await get_chirashi_text(page)
+                await page.go_back()
+
+    return chirashi_data
+
+
 @app.get("/tokubai/", tags=["url"], response_model=dict[str, dict[str, int]])
 async def get_tokubai_info(
     shops: list[str] = Query(
         ...,
-        shops=["ライフ"],
+        shops=["マルエツ"],
     ),
 ):
     target_url = "https://www.shufoo.net/"
@@ -279,15 +309,15 @@ async def get_tokubai_info(
             await _extract_supermarkets(page)
 
             await page.screenshot(path="dist/debug_screenshot_before_super_click.png")
+            chirashi_list = await _get_chirashi_data(shop_names=shops, page=page)
 
-            return {"result": {
-                "OK": 200
-            }}
+            return chirashi_list
         except Exception as e:
             print(e)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
             )
         finally:
+            await page.screenshot(path="dist/debug_screenshot_before_super_click_final.png")
             # ブラウザを閉じる
             await browser.close()

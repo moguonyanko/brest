@@ -261,23 +261,19 @@ async def get_chirashi_text(page):
     return extract_text_from_image(image)
 
 
-async def _get_chirashi_data(page: Page, shop_names: list[str]):
+async def _get_chirashi_data(page: Page):
     """
     チラシの内容を返します。
     """
     chirashi_data = {}
 
-    for shop_name in shop_names:
-        shop_links = page.get_by_text(shop_name)
-        shop_link_count = await shop_links.count()
-        if shop_link_count > 0:
-            all_shop_links = await shop_links.all()
-            for shop_link in all_shop_links:
-                await shop_link.wait_for(state="visible")
-                await shop_link.click()
-                shop_key = await shop_link.text_content()
-                chirashi_data[shop_key] = await get_chirashi_text(page)
-                await page.go_back()
+    chirashi_list = await page.locator(".chirashi_list_item").all()
+    for chirashi_item in chirashi_list:
+        await chirashi_item.wait_for(state="visible")
+        shop_key = await chirashi_item.locator(".chirashi_list_item_name_str").text_content()
+        await chirashi_item.click()
+        chirashi_data[shop_key] = await get_chirashi_text(page)
+        await page.go_back()
 
     return chirashi_data
 
@@ -309,7 +305,7 @@ async def get_tokubai_info(
             await _extract_supermarkets(page)
 
             await page.screenshot(path="dist/debug_screenshot_before_super_click.png")
-            chirashi_list = await _get_chirashi_data(shop_names=shops, page=page)
+            chirashi_list = await _get_chirashi_data(page)
 
             return chirashi_list
         except Exception as e:
@@ -318,6 +314,8 @@ async def get_tokubai_info(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
             )
         finally:
-            await page.screenshot(path="dist/debug_screenshot_before_super_click_final.png")
+            await page.screenshot(
+                path="dist/debug_screenshot_before_super_click_final.png"
+            )
             # ブラウザを閉じる
             await browser.close()

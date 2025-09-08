@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from webscraping import app
 import pytest
 import os
+import json
 
 
 def test_get_hellogis():
@@ -148,9 +149,12 @@ def test_get_text_from_image_url():
 
 def test_get_tokubai_infomation():
     with TestClient(app) as test_client:
-        response = test_client.get("/tokubai/", params={"shops": ["ライフ"]})
+        response = test_client.get("/tokubai/")
 
         assert response.status_code == 200
 
-        json = response.json()
+        result = response.json()
         assert json is not None
+
+        with open("dist/tokubai.json", "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=4)

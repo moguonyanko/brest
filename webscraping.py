@@ -6,23 +6,11 @@ https://www.oreilly.co.jp/books/9784814401222/
 """
 
 import re
-import json
-import requests
-import time
 from io import BytesIO
-from typing import Annotated, Tuple
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from typing import Any
 from PIL import Image
-from fastapi import FastAPI, HTTPException, Body, Response, status, Depends, Query
-from fastapi.responses import StreamingResponse, FileResponse
-from starlette.background import BackgroundTask
-from fastapi import File, UploadFile, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
-from urllib.parse import quote
-import wave
-from pathlib import Path
-import uuid
+from fastapi import FastAPI, HTTPException, status, Query
+from fastapi import File, UploadFile
 import os
 from urllib.request import urlopen, urlretrieve
 from urllib.error import URLError
@@ -229,9 +217,9 @@ async def _extract_supermarkets(page: Page):
     await page.wait_for_selector(sort_selector, state="visible")
     await page.click(sort_selector)
 
-    sort_link = page.get_by_text("近い順")
-    await sort_link.wait_for(state="visible")
-    await sort_link.click()
+    near_distance_selector = "#pop_menu_1 > div > div > ul > li:nth-child(2) > a"
+    await page.wait_for_selector(near_distance_selector, state="visible")
+    await page.click(near_distance_selector)
 
     shop_type_selector = "#main-content-inner > div.content_main_section.section_box_type_E > div > ul > li.chirashi_list_option_filters.btn_sp_ui.btn_sp_ui_A > a"
     await page.wait_for_selector(shop_type_selector, state="visible")
@@ -270,21 +258,18 @@ async def _get_chirashi_data(page: Page):
     chirashi_list = await page.locator(".chirashi_list_item").all()
     for chirashi_item in chirashi_list:
         await chirashi_item.wait_for(state="visible")
-        shop_key = await chirashi_item.locator(".chirashi_list_item_name_str").text_content()
+        shop_name = await chirashi_item.locator(
+            ".chirashi_list_item_name_str"
+        ).text_content()
         await chirashi_item.click()
-        chirashi_data[shop_key] = await get_chirashi_text(page)
+        chirashi_data[shop_name] = await get_chirashi_text(page)
         await page.go_back()
 
     return chirashi_data
 
 
-@app.get("/tokubai/", tags=["url"], response_model=dict[str, dict[str, int]])
-async def get_tokubai_info(
-    shops: list[str] = Query(
-        ...,
-        shops=["マルエツ"],
-    ),
-):
+@app.get("/tokubai/", tags=["url"], response_model=dict[str, str])
+async def get_tokubai_info():
     target_url = "https://www.shufoo.net/"
     async with async_playwright() as p:
         browser = await p.chromium.launch(
@@ -304,7 +289,6 @@ async def get_tokubai_info(
 
             await _extract_supermarkets(page)
 
-            await page.screenshot(path="dist/debug_screenshot_before_super_click.png")
             chirashi_list = await _get_chirashi_data(page)
 
             return chirashi_list

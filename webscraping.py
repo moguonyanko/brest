@@ -7,7 +7,6 @@ https://www.oreilly.co.jp/books/9784814401222/
 
 import re
 from io import BytesIO
-from typing import Any
 from PIL import Image
 from fastapi import FastAPI, HTTPException, status, Query
 from fastapi import File, UploadFile
@@ -22,6 +21,8 @@ from PIL import Image
 import pytesseract
 import httpx
 from playwright.async_api import async_playwright, Page
+from genaiapi import get_genai_client
+
 
 app = FastAPI(
     title="Brest Web Scraping API",
@@ -220,6 +221,10 @@ async def _extract_supermarkets(page: Page):
     near_distance_selector = "#pop_menu_1 > div > div > ul > li:nth-child(2) > a"
     await page.wait_for_selector(near_distance_selector, state="visible")
     await page.click(near_distance_selector)
+    # get_by_textは動作が安定しない。
+    # sort_element = page.locator(sort_selector)
+    # near_distance_element = sort_element.get_by_text("近い順")
+    # await near_distance_element.click()
 
     shop_type_selector = "#main-content-inner > div.content_main_section.section_box_type_E > div > ul > li.chirashi_list_option_filters.btn_sp_ui.btn_sp_ui_A > a"
     await page.wait_for_selector(shop_type_selector, state="visible")
@@ -242,11 +247,11 @@ async def _extract_supermarkets(page: Page):
     await page.click(extract_button)
 
 
-async def get_chirashi_text(page):
+async def _get_chirashi_image(page: Page):
     element = page.locator("#chirashi-area")
     image_bytes = await element.screenshot()
     image = Image.open(BytesIO(image_bytes))
-    return extract_text_from_image(image)
+    return image
 
 
 async def _get_chirashi_data(page: Page):
@@ -254,6 +259,9 @@ async def _get_chirashi_data(page: Page):
     チラシの内容を返します。
     """
     chirashi_data = {}
+    client = get_genai_client()
+    upload_images = []
+    shop_names = []
 
     chirashi_list = await page.locator(".chirashi_list_item").all()
     for chirashi_item in chirashi_list:
@@ -262,8 +270,22 @@ async def _get_chirashi_data(page: Page):
             ".chirashi_list_item_name_str"
         ).text_content()
         await chirashi_item.click()
-        chirashi_data[shop_name] = await get_chirashi_text(page)
+        chirashi_image = await _get_chirashi_image(page)
+        upload_image = await client.aio.files.upload(file=chirashi_image)
+        upload_images.append(upload_image)
+        shop_names.append(shop_name)
         await page.go_back()
+
+    response = await client.aio.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[
+            *upload_images,
+            "Please extract the text from the image.",
+        ],
+    )
+
+    for target_shop_name in shop_names:
+        chirashi_data[target_shop_name] = response.text
 
     return chirashi_data
 
@@ -273,10 +295,10 @@ async def get_tokubai_info():
     target_url = "https://www.shufoo.net/"
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=True,
+            # headless=True,
             # テスト用
-            # headless=False,
-            # slow_mo=1000,
+            headless=False,
+            slow_mo=1000,
         )
         page = await browser.new_page()
 

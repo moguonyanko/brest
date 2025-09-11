@@ -240,12 +240,6 @@ async def _extract_supermarkets(page: Page):
     await page.wait_for_selector(super_link_selector, state="visible")
     await page.click(super_link_selector)
 
-    # extract_button = (
-    #     "#pop_menu_1 > div > div > div > div.category_filters_foot > div > a"
-    # )
-    # await page.wait_for_selector(extract_button, state="visible")
-    # await page.click(extract_button)
-
 
 async def _get_chirashi_image(page: Page):
     element = page.locator("#chirashi-area")

@@ -218,19 +218,19 @@ async def _extract_supermarkets(page: Page):
     await page.wait_for_selector(sort_selector, state="visible")
     await page.click(sort_selector)
 
-    near_distance_selector = "#pop_menu_1 > div > div > ul > li:nth-child(2) > a"
+    near_distance_selector = f"#pop_menu_2 > div > div > ul > li:nth-child(1) > a"
     await page.wait_for_selector(near_distance_selector, state="visible")
     await page.click(near_distance_selector)
     # get_by_textは動作が安定しない。
     # sort_element = page.locator(sort_selector)
-    # near_distance_element = sort_element.get_by_text("近い順")
+    # near_distance_element = sort_element.get_by_text("近い順", exact=True)
     # await near_distance_element.click()
 
-    shop_type_selector = "#main-content-inner > div.content_main_section.section_box_type_E > div > ul > li.chirashi_list_option_filters.btn_sp_ui.btn_sp_ui_A > a"
+    shop_type_selector = "#main-content-inner > div.content_main_section.section_box_type_E > div > ul > li.chirashi_list_option_filters.single_option.btn_sp_ui.btn_sp_ui_A > a"
     await page.wait_for_selector(shop_type_selector, state="visible")
     await page.click(shop_type_selector)
 
-    all_type_link = "#pop_menu_1 > div > div > div > ul > li.cfs_item.cfs_item_all.cfs_item_level_1 > a"
+    all_type_link = "#main-content-inner > div.content_main_section.section_box_type_E > div > ul > li.chirashi_list_option_filters.single_option.btn_sp_ui.btn_sp_ui_A > a"
     await page.wait_for_selector(all_type_link, state="visible")
     await page.click(all_type_link)
 
@@ -240,11 +240,11 @@ async def _extract_supermarkets(page: Page):
     await page.wait_for_selector(super_link_selector, state="visible")
     await page.click(super_link_selector)
 
-    extract_button = (
-        "#pop_menu_1 > div > div > div > div.category_filters_foot > div > a"
-    )
-    await page.wait_for_selector(extract_button, state="visible")
-    await page.click(extract_button)
+    # extract_button = (
+    #     "#pop_menu_1 > div > div > div > div.category_filters_foot > div > a"
+    # )
+    # await page.wait_for_selector(extract_button, state="visible")
+    # await page.click(extract_button)
 
 
 async def _get_chirashi_image(page: Page):

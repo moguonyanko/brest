@@ -289,10 +289,10 @@ async def get_tokubai_info():
     target_url = "https://www.shufoo.net/"
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            # headless=True,
+            headless=True,
             # テスト用
-            headless=False,
-            slow_mo=1000,
+            # headless=False,
+            # slow_mo=1000,
         )
         page = await browser.new_page()
 

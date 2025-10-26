@@ -22,7 +22,7 @@ import pytesseract
 import httpx
 from playwright.async_api import async_playwright, Page
 from genaiapi import get_genai_client
-
+import ssl
 
 app = FastAPI(
     title="Brest Web Scraping API",
@@ -41,9 +41,20 @@ async def get_hello_webscraping():
 
 def read_all_contents(url: str) -> str:
     try:
-        contents = urlopen(url)
+        contents = urlopen(
+            url
+        )  # 証明書検証を無効にする場合は、後述の修正を適用してください
     except URLError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.reason)
+        # e.reasonがオブジェクトの場合があるため、e全体を文字列化する
+        detail_msg = str(e)
+        # エラーがSSLCertVerificationErrorであることを示すため、詳細情報に含める
+        if isinstance(e.reason, ssl.SSLCertVerificationError):
+            detail_msg = f"SSL証明書エラー: {str(e.reason)}"
+        else:
+            detail_msg = str(e)
+
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail_msg)
+
     return contents.read()
 
 

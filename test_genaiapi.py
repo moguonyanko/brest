@@ -9,6 +9,20 @@ import pytest
 import soundfile as sf
 import librosa
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch, UrlContext
+from genaiappi_models_utils import (
+    get_generate_text_model_name,
+    get_generate_image_model_name,
+    get_generate_vision_model_name,
+    get_generate_transcription_movie_model_name,
+    get_generate_transcription_movie_inline_model_name,
+    get_generate_transcription_audio_inline_model_name,
+    get_model_name_summarize_document,
+    get_model_name_text_embedding,
+    get_model_name_thinking,
+    get_model_generate_speech,
+    get_model_url_context,
+    get_model_live_api_speech,
+)
 
 test_client = TestClient(app)
 
@@ -36,7 +50,7 @@ def test_generate_text_from_inline_movie():
         video_bytes = f.read()
 
     response = get_genai_client().models.generate_content(
-        model="models/gemini-2.0-flash",
+        model=get_generate_transcription_movie_model_name(),
         contents=types.Content(
             parts=[
                 types.Part(text="Can you summarize this video?"),
@@ -60,7 +74,7 @@ def test_generate_text_from_inline_audio():
         audio_bytes = f.read()
 
     response = get_genai_client().models.generate_content(
-        model="gemini-2.0-flash",
+        model=get_generate_transcription_audio_inline_model_name(),
         contents=[
             "Describe this audio clip",
             types.Part.from_bytes(
@@ -85,7 +99,7 @@ def test_generate_text_from_local_pdf():
 
     prompt = "Summarize this document"
     response = client.models.generate_content(
-        model="gemini-1.5-flash",
+        model=get_model_name_summarize_document(),
         contents=[
             types.Part.from_bytes(
                 data=filepath.read_bytes(),
@@ -106,7 +120,7 @@ def test_generate_image_from_text():
     contents = "Cats that turn into humans and rule the earth"
 
     response = client.models.generate_content(
-        model="gemini-2.0-flash-exp-image-generation",
+        model=get_generate_image_model_name(),
         contents=contents,
         config=types.GenerateContentConfig(response_modalities=["Text", "Image"]),
     )
@@ -134,7 +148,7 @@ def test_generate_thinking_result():
     client = get_genai_client()
 
     response = client.models.generate_content(
-        model="gemini-2.5-pro",
+        model=get_model_name_thinking(),
         contents="Explain the Occam's Razor concept and provide everyday examples of it",
         config=types.GenerateContentConfig(thinking_config=types.ThinkingConfig()),
     )
@@ -153,7 +167,7 @@ def test_generate_speech():
     https://ai.google.dev/gemini-api/docs/speech-generation?hl=ja
     """
     response = get_genai_client().models.generate_content(
-        model="gemini-2.5-flash-preview-tts",
+        model=get_model_generate_speech(),
         contents=SAMPLE_SPEECH_MESASGE,
         config=types.GenerateContentConfig(
             response_modalities=["AUDIO"],
@@ -198,7 +212,7 @@ async def test_generate_text_from_speech_file_by_live_api():
     https://ai.google.dev/gemini-api/docs/live-guide?hl=ja#send-receive-audio
     """
     client = get_genai_client()
-    model = "gemini-live-2.5-flash-preview"
+    model = get_model_live_api_speech()
     config = {"response_modalities": ["AUDIO"]}
     filepath = f"{Path.home()}/share/audio/samplespeech.wav"
 
@@ -239,7 +253,7 @@ def test_extract_url_context():
     https://ai.google.dev/gemini-api/docs/url-context?hl=ja
     """
     client = get_genai_client()
-    model_id = "gemini-2.5-flash"
+    model_id = get_model_url_context()
     target_url = "https://ipqcache2.shufoo.net/c/2025/06/17/c/5852566107125/index/img/chirashi.pdf?shopId=2206&chirashiId=5852566107125"
 
     tools = []
@@ -287,7 +301,7 @@ async def test_write_audio_file_from_text_with_live_api():
     https://ai.google.dev/gemini-api/docs/live-guide?hl=ja#send-receive-audio
     """
     client = get_genai_client()
-    model = "gemini-2.5-flash-preview-native-audio-dialog"
+    model = get_model_live_api_speech()
     config = {"response_modalities": ["AUDIO"]}
     filepath = f"{Path.home()}/share/audio/samplespeech_from_text.wav"
 
@@ -328,7 +342,7 @@ async def test_generate_audio_from_user_audio_with_live_api():
     session.receive()から応答が返されずタイムアウトになります。
     """
     client = get_genai_client()
-    model = "gemini-2.5-flash-preview-native-audio-dialog"
+    model = get_model_live_api_speech()
     config = {
         "response_modalities": ["AUDIO"],
         "system_instruction": "You are a helpful assistant and answer in a friendly tone.",

@@ -2,15 +2,15 @@
   "model_name": {
     "generate_text": "gemini-2.5-flash",
     "generate_image": "gemini-2.0-flash-exp-image-generation",
-    "vision": "gemini-2.0-flash",
-    "transcription_movie": "gemini-1.5-pro",
-    "transcription_movie_inline": "models/gemini-2.0-flash",
-    "transcription_audio_inline": "gemini-2.0-flash",
-    "summarize_document": "gemini-1.5-flash",
+    "vision": "gemini-2.5-flash",
+    "transcription_movie": "gemini-2.5-flash",
+    "transcription_movie_inline": "gemini-2.5-flash",
+    "transcription_audio_inline": "gemini-2.5-flash",
+    "summarize_document": "gemini-2.5-flash",
     "text_embedding": "gemini-embedding-exp-03-07",
-    "thinking": "gemini-2.5-pro",
+    "thinking": "gemini-2.5-flash",
     "generate_speech": "gemini-2.5-flash-preview-tts",
     "url_context": "gemini-2.5-flash",
-    "live_api_speech": "gemini-2.5-flash-preview-native-audio-dialog"
+    "live_api_speech": "gemini-2.5-flash-native-audio-preview-09-2025"
   }
 }

@@ -1,4 +1,3 @@
-import json
 import requests
 import time
 from io import BytesIO
@@ -19,6 +18,21 @@ import wave
 from pathlib import Path
 import uuid
 import os
+from utils import load_json
+from genaiappi_models_utils import (
+    get_generate_text_model_name,
+    get_generate_image_model_name,
+    get_generate_vision_model_name,
+    get_generate_transcription_movie_model_name,
+    get_generate_transcription_movie_inline_model_name,
+    get_generate_transcription_audio_inline_model_name,
+    get_model_name_summarize_document,
+    get_model_name_text_embedding,
+    get_model_name_thinking,
+    get_model_generate_speech,
+    get_model_url_context,
+    get_model_live_api_speech,
+)
 
 app = FastAPI(
     title="Brest Generative AI API",
@@ -30,79 +44,18 @@ app = FastAPI(
 app_base_path = "/generate"
 
 
-def load_config_file(path: str):
-    with open(path, "r") as f:
-        return json.load(f)
-
-
 # Gemini APIの共通設定読み込み
-genaiapi_config = load_config_file(path="genaiapi_config.json")
+genaiapi_config = load_json(path="genaiapi_config.json")
 
-# Gemini APIのモデル設定読み込み
-genaiapi_models = load_config_file(path="genaiapi_models.json")
-genaiapi_model_names = genaiapi_models["model_name"]
 
 # Gemini APIのキー読み込み
-api_keys = load_config_file(path="genaiapi_keys.json")["api_keys"]
+api_keys = load_json(path="genaiapi_keys.json")["api_keys"]
 # APIキーを使い分ける必要が生じたらcommon以外を参照できるように以下のコードを修正する。
 api_key = api_keys["common"]
 
 
 def get_genai_client():
     return genai.Client(api_key=api_key)
-
-
-"""
-設定ファイルからモデル名を取得する関数群
-"""
-
-
-def get_generate_text_model_name() -> str:
-    return genaiapi_model_names["generate_text"]
-
-
-def get_generate_image_model_name() -> str:
-    return genaiapi_model_names["generate_image"]
-
-
-def get_generate_vision_model_name() -> str:
-    return genaiapi_model_names["vision"]
-
-
-def get_generate_transcription_movie_model_name() -> str:
-    return genaiapi_model_names["transcription_movie"]
-
-
-def get_generate_transcription_movie_inline_model_name() -> str:
-    return genaiapi_model_names["transcription_movie_inline"]
-
-
-def get_generate_transcription_audio_inline_model_name() -> str:
-    return genaiapi_model_names["transcription_audio_inline"]
-
-
-def get_model_name_summarize_document() -> str:
-    return genaiapi_model_names["summarize_document"]
-
-
-def get_model_name_text_embedding() -> str:
-    return genaiapi_model_names["text_embedding"]
-
-
-def get_model_name_thinking() -> str:
-    return genaiapi_model_names["thinking"]
-
-
-def get_model_generate_speech() -> str:
-    return genaiapi_model_names["generate_speech"]
-
-
-def get_model_url_context() -> str:
-    return genaiapi_model_names["url_context"]
-
-
-def get_model_live_api_speech() -> str:
-    return genaiapi_model_names["live_api_speech"]
 
 
 """
@@ -653,11 +606,13 @@ def dump_base64_data_type(data):
     elif isinstance(data, bytes):
         print(f"First 50 bytes of data (hex): {data[:50].hex()}...")
 
+
 def get_temp_audio_file_path(prefix: str = "") -> Path:
     temp_dir = Path(f"{Path.home()}/share/audio/tmp/fastapi_audio_cache")
     temp_dir.mkdir(parents=True, exist_ok=True)
     temp_file_path = temp_dir / f"{prefix}_speech_{uuid.uuid4()}.wav"
     return temp_file_path
+
 
 def write_temp_wave_file(frames) -> Path:
     """

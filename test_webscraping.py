@@ -146,6 +146,7 @@ def test_get_text_from_image_url():
         assert_extract_text_from_image_url(test_client, direct_image_url)
         assert_extract_text_from_image_url(test_client, action_image_url)
 
+
 @pytest.mark.skip("外部サイトにアクセスするためテストはスキップする。")
 def test_get_tokubai_infomation():
     with TestClient(app) as test_client:

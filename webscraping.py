@@ -39,11 +39,27 @@ async def get_hello_webscraping():
     return {"message": "Hello Brest Web Scraping!"}
 
 
+_CADDY_ROOT_CERT_PATH = os.environ["CADDY_ROOT_CERT_PATH"]
+
+
+def _create_custom_ssl_context(cert_path: str):
+    """Caddyのルート証明書を追加したSSLコンテキストを作成"""
+    if not os.path.exists(cert_path):
+        raise FileNotFoundError(f"証明書ファイルが見つかりません: {cert_path}")
+
+    print(f"DEBUG: Caddyルート証明書をロード中: {cert_path}")
+    context = ssl.create_default_context()
+    # Caddyのルート証明書を信頼されたCAファイルとして追加
+    context.load_verify_locations(cafile=cert_path)
+    return context
+
+
+custom_ssl_context = _create_custom_ssl_context(_CADDY_ROOT_CERT_PATH)
+
+
 def read_all_contents(url: str) -> str:
     try:
-        contents = urlopen(
-            url
-        )  # 証明書検証を無効にする場合は、後述の修正を適用してください
+        contents = urlopen(url, context=custom_ssl_context)
     except URLError as e:
         # e.reasonがオブジェクトの場合があるため、e全体を文字列化する
         detail_msg = str(e)

@@ -23,6 +23,8 @@ import httpx
 from playwright.async_api import async_playwright, Page
 from genaiapi import get_genai_client
 import ssl
+import requests
+from requests.exceptions import RequestException, HTTPError
 
 app = FastAPI(
     title="Brest Web Scraping API",
@@ -42,36 +44,38 @@ async def get_hello_webscraping():
 _CADDY_ROOT_CERT_PATH = os.environ["CADDY_ROOT_CERT_PATH"]
 
 
-def _create_custom_ssl_context(cert_path: str):
-    """Caddyのルート証明書を追加したSSLコンテキストを作成"""
-    if not os.path.exists(cert_path):
-        raise FileNotFoundError(f"証明書ファイルが見つかりません: {cert_path}")
-
-    print(f"DEBUG: Caddyルート証明書をロード中: {cert_path}")
-    context = ssl.create_default_context()
-    # Caddyのルート証明書を信頼されたCAファイルとして追加
-    context.load_verify_locations(cafile=cert_path)
-    return context
-
-
-custom_ssl_context = _create_custom_ssl_context(_CADDY_ROOT_CERT_PATH)
-
-
 def read_all_contents(url: str) -> str:
+    """
+    指定されたURLから全コンテンツを取得して返します。
+    requestsを使用して証明書を検証します（verifyは環境に応じて設定）。
+    """
     try:
-        contents = urlopen(url, context=custom_ssl_context)
-    except URLError as e:
-        # e.reasonがオブジェクトの場合があるため、e全体を文字列化する
+        # requestsを使用し、verifyパラメータで証明書ファイルを指定
+        # SSLエラー回避のため、テスト時はverify=Falseの使用を検討
+        response = requests.get(url, verify=_CADDY_ROOT_CERT_PATH)
+        response.raise_for_status()  # 4xx や 5xx ステータスコードで例外を発生させる
+        
+    except HTTPError as e:
+        # 1. HTTPステータスコードエラー (404, 500など) を捕捉
+        # 外部サイトのステータスコードをFastAPIのレスポンスに反映させる
+        status_code = e.response.status_code
+        detail_msg = f"外部サイトエラー ({status_code}): {e.response.reason}"
+        
+        # 404や403などのエラーをそのまま返す
+        raise HTTPException(status_code=status_code, detail=detail_msg)
+        
+    except RequestException as e:
+        # 2. その他のrequestsエラー (接続エラー, SSLエラーなど) を捕捉
+        # これらのエラーは通常、リクエスト自体が無効であるとみなし、400を返す
         detail_msg = str(e)
-        # エラーがSSLCertVerificationErrorであることを示すため、詳細情報に含める
-        if isinstance(e.reason, ssl.SSLCertVerificationError):
-            detail_msg = f"SSL証明書エラー: {str(e.reason)}"
-        else:
-            detail_msg = str(e)
-
+        
+        # 以前の問題 (SSL証明書エラー) の診断を反映
+        if "CERTIFICATE_VERIFY_FAILED" in detail_msg:
+             detail_msg = f"SSL証明書エラーが発生しました: {detail_msg}"
+             
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail_msg)
 
-    return contents.read()
+    return response.text
 
 
 @app.get("/pagecontents/", tags=["url"], response_model=dict[str, str])

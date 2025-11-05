@@ -11,6 +11,7 @@
     "thinking": "gemini-2.5-flash",
     "generate_speech": "gemini-2.5-flash-preview-tts",
     "url_context": "gemini-2.5-flash",
-    "live_api_speech": "gemini-2.5-flash-native-audio-preview-09-2025"
+    "live_api_speech": "gemini-2.5-flash-native-audio-preview-09-2025",
+    "robotics": "gemini-robotics-er-1.5-preview"
   }
 }

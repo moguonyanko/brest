@@ -32,6 +32,7 @@ from genaiappi_models_utils import (
     get_model_generate_speech,
     get_model_url_context,
     get_model_live_api_speech,
+    get_model_robotics,
 )
 
 app = FastAPI(
@@ -780,3 +781,15 @@ async def generate_speech_from_text_by_live_api(
         filename="generated_text_to_speech.wav",
         background=BackgroundTask(remove_file, temp_file_path),
     )
+
+
+@app.post(f"{app_base_path}/robotics/detect-human", tags=["ai"])
+async def detect_human(
+    files: list[UploadFile],
+):
+    """
+    ロボティクス用モデルを使って画像内の人間を検出します。
+    """
+    print(files)
+
+    pass

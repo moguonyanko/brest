@@ -55,3 +55,7 @@ def get_model_url_context() -> str:
 
 def get_model_live_api_speech() -> str:
     return genaiapi_model_names["live_api_speech"]
+
+
+def get_model_robotics() -> str:
+    return genaiapi_model_names["robotics"]

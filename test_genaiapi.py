@@ -23,6 +23,7 @@ from genaiappi_models_utils import (
     get_model_url_context,
     get_model_live_api_speech,
 )
+import os
 
 test_client = TestClient(app)
 
@@ -176,8 +177,8 @@ def test_generate_speech():
                     # voice_nameは規定されている値を指定しないとHTTPエラーとなる。
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name="Puck")
                 )
-            )
-        )
+            ),
+        ),
     )
 
     data = response.candidates[0].content.parts[0].inline_data.data
@@ -385,3 +386,19 @@ async def test_generate_audio_from_user_audio_with_live_api():
             sampwidth=sampwidth,
             framerate=framerate,
         )
+
+
+def test_detect_human():
+    with TestClient(app) as test_client:
+        file_path = os.path.join("sample", "sample_park.jpg")
+        with open(file_path, "rb") as image_file:
+            files = [
+                ("files", ("sample_park.jpg", image_file, "image/jpeg")),
+            ]
+            response = test_client.post("/generate/robotics/detect-human/", files=files)
+
+        assert response.status_code == 200
+
+        result_json = response.json()
+        assert result_json is not None
+        print(result_json)

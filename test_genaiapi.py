@@ -24,6 +24,7 @@ from genaiappi_models_utils import (
     get_model_live_api_speech,
 )
 import os
+import json
 
 test_client = TestClient(app)
 
@@ -388,14 +389,19 @@ async def test_generate_audio_from_user_audio_with_live_api():
         )
 
 
-def test_detect_human():
+def test_detect_objects():
     with TestClient(app) as test_client:
         file_path = os.path.join("sample", "sample_park.jpg")
         with open(file_path, "rb") as image_file:
             files = [
                 ("files", ("sample_park.jpg", image_file, "image/jpeg")),
             ]
-            response = test_client.post("/generate/robotics/detect-human/", files=files)
+            data = {
+                "targets": json.dumps(["human"])
+            }
+            response = test_client.post("/generate/robotics/detect-objects/", 
+                                        files=files,
+                                        data=data)
 
         assert response.status_code == 200
 

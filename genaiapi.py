@@ -8,7 +8,7 @@ from google import genai
 from google.genai import types
 from google.genai.types import Tool, GenerateContentConfig, GoogleSearch, UrlContext
 from PIL import Image
-from fastapi import FastAPI, HTTPException, Body, Response
+from fastapi import FastAPI, HTTPException, Body, Response, Form
 from fastapi.responses import StreamingResponse, FileResponse
 from starlette.background import BackgroundTask
 from fastapi import File, UploadFile, WebSocket, WebSocketDisconnect
@@ -34,6 +34,7 @@ from genaiappi_models_utils import (
     get_model_live_api_speech,
     get_model_robotics,
 )
+import json
 
 app = FastAPI(
     title="Brest Generative AI API",
@@ -783,13 +784,21 @@ async def generate_speech_from_text_by_live_api(
     )
 
 
-@app.post(f"{app_base_path}/robotics/detect-human", tags=["ai"])
-async def detect_human(
-    files: list[UploadFile],
+@app.post(f"{app_base_path}/robotics/detect-objects", tags=["ai"])
+async def detect_objects(
+    files: Annotated[
+        list[UploadFile], File(description="アップロードされたファイル群です。")
+    ],
+    # 内容はリストだがJSONの文字列として渡されてくるのでstr型で受け取る。
+    targets: Annotated[
+        str, Form(description="検出対象のJSON文字列リスト。例: '[\"human\", \"car\"]'")
+    ],    
 ):
     """
-    ロボティクス用モデルを使って画像内の人間を検出します。
+    ロボティクス用モデルを使って画像内のオブジェクトを検出します。
     """
     print(files)
+    targets_list = json.loads(targets)
+    print(targets_list)
 
     pass

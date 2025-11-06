@@ -389,15 +389,17 @@ async def test_generate_audio_from_user_audio_with_live_api():
         )
 
 
+@pytest.mark.timeout(15)
 def test_detect_objects():
     with TestClient(app) as test_client:
-        file_path = os.path.join("sample", "sample_park.jpg")
+        file_name = "apple.png"
+        file_path = os.path.join("sample", file_name)
         with open(file_path, "rb") as image_file:
             files = [
-                ("files", ("sample_park.jpg", image_file, "image/jpeg")),
+                ("files", (file_name, image_file, "image/png")),
             ]
             data = {
-                "targets": json.dumps(["human"])
+                "targets": json.dumps(["apple"])
             }
             response = test_client.post("/generate/robotics/detect-objects/", 
                                         files=files,
@@ -407,4 +409,10 @@ def test_detect_objects():
 
         result_json = response.json()
         assert result_json is not None
+        assert file_name in result_json
+        assert len(result_json[file_name]) > 0
+        for obj in result_json[file_name]:
+            assert obj["object"] == "apple"
+            assert len(obj["bounding_box"]) == 4
+
         print(result_json)

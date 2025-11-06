@@ -1,7 +1,7 @@
 import requests
 import time
 from io import BytesIO
-from typing import Annotated
+from typing import Annotated, Any
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from google import genai
@@ -784,21 +784,67 @@ async def generate_speech_from_text_by_live_api(
     )
 
 
-@app.post(f"{app_base_path}/robotics/detect-objects", tags=["ai"])
+@app.post(
+    f"{app_base_path}/robotics/detect-objects",
+    tags=["ai"],
+    response_model=dict[str, Any],
+)
 async def detect_objects(
     files: Annotated[
         list[UploadFile], File(description="アップロードされたファイル群です。")
     ],
     # 内容はリストだがJSONの文字列として渡されてくるのでstr型で受け取る。
     targets: Annotated[
-        str, Form(description="検出対象のJSON文字列リスト。例: '[\"human\", \"car\"]'")
-    ],    
+        str,
+        Form(
+            description="検出対象の名前を保持した文字列のリストです。",
+            examples=['{"targets": ["apple"]}'],
+        ),
+    ],
 ):
     """
     ロボティクス用モデルを使って画像内のオブジェクトを検出します。
     """
-    print(files)
-    targets_list = json.loads(targets)
-    print(targets_list)
+    try:
+        targets_list = json.loads(targets)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="targetsパラメータのJSONデコードに失敗しました。有効なJSON文字列を指定してください。",
+        )
 
-    pass
+    prompt = f"""
+    次の画像に含まれるオブジェクトを検出してください。検出対象は{targets_list}です。
+    検出結果はJSON形式で、各オブジェクトの種類と バウンディングボックスの座標を含めてください。
+    バウンディングボックスの座標は[ymin, xmin, ymax, xmax]形式で指定してください。
+    画像に検出対象が存在しない場合は空のリストを返してください。
+    # 出力例:
+    [
+        {{"object": "human", "bounding_box": [0.1, 0.2, 0.5, 0.4]}},
+        {{"object": "car", "bounding_box": [0.3, 0.4, 0.6, 0.5]}}
+    ]
+    """
+    client = get_genai_client()
+    model = get_model_robotics()
+
+    results = {}
+
+    for file in files:
+        image_bytes = await file.read()
+        image_response = client.models.generate_content(
+            model=model,
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type=file.content_type),
+                prompt,
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0.5,
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                response_mime_type="application/json",
+            ),
+        )
+        results[file.filename] = json.loads(image_response.text)
+
+    print(results)
+
+    return results

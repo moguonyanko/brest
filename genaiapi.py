@@ -57,7 +57,8 @@ api_key = api_keys["common"]
 
 
 def get_genai_client():
-    return genai.Client(api_key=api_key)
+    timeout_ms = genaiapi_config["resuest_timeout_ms"]
+    return genai.Client(api_key=api_key, http_options={"timeout": timeout_ms})
 
 
 """
@@ -830,21 +831,31 @@ async def detect_objects(
     results = {}
 
     for file in files:
-        image_bytes = await file.read()
-        image_response = client.models.generate_content(
-            model=model,
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type=file.content_type),
-                prompt,
-            ],
-            config=types.GenerateContentConfig(
-                temperature=0.5,
-                thinking_config=types.ThinkingConfig(thinking_budget=0),
-                response_mime_type="application/json",
-            ),
-        )
-        results[file.filename] = json.loads(image_response.text)
+        try:
+            image_bytes = await file.read()
+            image_response = client.models.generate_content(
+                model=model,
+                contents=[
+                    types.Part.from_bytes(
+                        data=image_bytes, mime_type=file.content_type
+                    ),
+                    prompt,
+                ],
+                config=types.GenerateContentConfig(
+                    temperature=0.5,
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                    response_mime_type="application/json",
+                ),
+            )
+            results[file.filename] = json.loads(image_response.text)
+        except Exception as err:
+            code = hasattr(err, "status_code") and getattr(err, "status_code")
+            if not code:
+                code = 500
 
-    print(results)
+            raise HTTPException(
+                status_code=code,
+                detail=f"画像処理エラー: ファイル {file.filename} の処理中にエラーが発生しました。{err=}, {type(err)=}",
+            )
 
     return results

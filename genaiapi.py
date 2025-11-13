@@ -821,8 +821,8 @@ async def detect_objects(
     画像に検出対象が存在しない場合は空のリストを返してください。
     # 出力例:
     [
-        {{"object": "human", "bounding_box": [0.1, 0.2, 0.5, 0.4]}},
-        {{"object": "car", "bounding_box": [0.3, 0.4, 0.6, 0.5]}}
+        {{"object": "human", "bounding_box": [431, 220, 512, 296]}},
+        {{"object": "car", "bounding_box": [459, 642, 539, 719]}}
     ]
     """
     client = get_genai_client()

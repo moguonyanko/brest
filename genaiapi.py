@@ -842,7 +842,7 @@ async def detect_objects(
                     prompt,
                 ],
                 config=types.GenerateContentConfig(
-                    temperature=0.5,
+                    temperature=genaiapi_config["temperature"],
                     thinking_config=types.ThinkingConfig(thinking_budget=0),
                     response_mime_type="application/json",
                 ),

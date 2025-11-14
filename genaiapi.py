@@ -18,7 +18,7 @@ import wave
 from pathlib import Path
 import uuid
 import os
-from utils import load_json
+from utils import load_json, normalize_bounding_box_with_image_pixel_size
 from genaiappi_models_utils import (
     get_generate_text_model_name,
     get_generate_image_model_name,
@@ -785,6 +785,25 @@ async def generate_speech_from_text_by_live_api(
     )
 
 
+def _normalize_bounding_box(result: list[Any], image_bytes: bytes):
+    """
+    画像のバウンディングボックスを正規化します。
+    引数のresultはサイズが大きい可能性がありコピーを避けるため、
+    resultの値を上書きして返します。従ってこの関数は副作用があります。    
+    なお、resultはAPIの戻り値をそのまま渡すことを想定しています。
+    そのため、戻り値の型はlist[Any]としています。
+    画像のバウンディングボックスは[ ymin, xmin, ymax, xmax ]形式で並んでいることを想定しています。
+    """
+    original_image = Image.open(BytesIO(image_bytes))
+    for bounding_box_info in result:
+        normalized_box = normalize_bounding_box_with_image_pixel_size(
+            bounding_box=bounding_box_info["bounding_box"],
+            original_image_size=(original_image.width, original_image.height),
+            scale=genaiapi_config["normalization_scale"],
+        )
+        bounding_box_info["bounding_box"] = normalized_box        
+
+
 @app.post(
     f"{app_base_path}/robotics/detect-objects",
     tags=["ai"],
@@ -847,7 +866,11 @@ async def detect_objects(
                     response_mime_type="application/json",
                 ),
             )
-            results[file.filename] = json.loads(image_response.text)
+
+            result = json.loads(image_response.text)
+            _normalize_bounding_box(result, image_bytes)
+
+            results[file.filename] = result
         except Exception as err:
             code = hasattr(err, "status_code") and getattr(err, "status_code")
             if not code:

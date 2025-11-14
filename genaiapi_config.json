@@ -2,5 +2,6 @@
   "max_output_tokens": 1000,
   "temperature": 0.1,
   "response_mime_type": "text/plain",
-  "resuest_timeout_ms": 30000
+  "resuest_timeout_ms": 60000,
+  "normalization_scale": 1000
 }

@@ -789,7 +789,7 @@ def _normalize_bounding_box(result: list[Any], image_bytes: bytes):
     """
     画像のバウンディングボックスを正規化します。
     引数のresultはサイズが大きい可能性がありコピーを避けるため、
-    resultの値を上書きして返します。従ってこの関数は副作用があります。    
+    resultの値を上書きして返します。従ってこの関数は副作用があります。
     なお、resultはAPIの戻り値をそのまま渡すことを想定しています。
     そのため、戻り値の型はlist[Any]としています。
     画像のバウンディングボックスは[ ymin, xmin, ymax, xmax ]形式で並んでいることを想定しています。
@@ -801,7 +801,28 @@ def _normalize_bounding_box(result: list[Any], image_bytes: bytes):
             original_image_size=(original_image.width, original_image.height),
             scale=genaiapi_config["normalization_scale"],
         )
-        bounding_box_info["bounding_box"] = normalized_box        
+        bounding_box_info["bounding_box"] = normalized_box
+
+
+def _request_robotics_api(
+    file: UploadFile, image_bytes: bytes, prompt: str
+) -> dict[str, Any]:
+    client = get_genai_client()
+
+    image_response = client.models.generate_content(
+        model=get_model_robotics(),
+        contents=[
+            types.Part.from_bytes(data=image_bytes, mime_type=file.content_type),
+            prompt,
+        ],
+        config=types.GenerateContentConfig(
+            temperature=genaiapi_config["temperature"],
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            response_mime_type="application/json",
+        ),
+    )
+
+    return json.loads(image_response.text)
 
 
 @app.post(
@@ -844,30 +865,17 @@ async def detect_objects(
         {{"object": "car", "bounding_box": [459, 642, 539, 719]}}
     ]
     """
-    client = get_genai_client()
-    model = get_model_robotics()
-
     results = {}
 
     for file in files:
         try:
             image_bytes = await file.read()
-            image_response = client.models.generate_content(
-                model=model,
-                contents=[
-                    types.Part.from_bytes(
-                        data=image_bytes, mime_type=file.content_type
-                    ),
-                    prompt,
-                ],
-                config=types.GenerateContentConfig(
-                    temperature=genaiapi_config["temperature"],
-                    thinking_config=types.ThinkingConfig(thinking_budget=0),
-                    response_mime_type="application/json",
-                ),
+            result = _request_robotics_api(
+                file=file,
+                image_bytes=image_bytes,
+                prompt=prompt,
             )
 
-            result = json.loads(image_response.text)
             _normalize_bounding_box(result, image_bytes)
 
             results[file.filename] = result

@@ -427,7 +427,7 @@ def test_task_orchestration():
             files = [
                 ("files", (file_name, image_file, "image/png")),
             ]
-            data = {"task_source": json.dumps(["この部屋を掃除する。"])}
+            data = {"task_source": json.dumps(["この部屋を隅々まで綺麗にしたい。"])}
             response = test_client.post(
                 "/generate/robotics/task-orchestration/", files=files, data=data
             )
@@ -438,5 +438,11 @@ def test_task_orchestration():
         assert result_json is not None
         assert file_name in result_json
         assert len(result_json[file_name]) > 0
+
+        for task in result_json[file_name]:
+            assert "action" in task
+            assert "point" in task
+            assert len(task["point"]) == 2
+            assert "label" in task
 
         print(result_json)

@@ -1,4 +1,4 @@
-from utils import normalize_bounding_box_with_image_pixel_size
+from utils import convert_normalized_bbox_to_pixel_bbox
 
 def test_normalize_bounding_box_with_image_pixel_size():
 
@@ -6,7 +6,7 @@ def test_normalize_bounding_box_with_image_pixel_size():
     original_image_size = (800, 600)  # width, height
     scale = 1000
 
-    result = normalize_bounding_box_with_image_pixel_size(
+    result = convert_normalized_bbox_to_pixel_bbox(
         bounding_box,
         original_image_size,
         scale,

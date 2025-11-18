@@ -1,11 +1,12 @@
 import json
 
+
 def load_json(path: str):
     with open(path, "r") as f:
         return json.load(f)
 
 
-def normalize_bounding_box_with_image_pixel_size(
+def convert_normalized_bbox_to_pixel_bbox(
     bounding_box: dict,
     original_image_size: tuple[int, int],
     scale: int,
@@ -30,3 +31,31 @@ def normalize_bounding_box_with_image_pixel_size(
     ymax_pixel = int(round((ymax_norm / scale) * original_height))
 
     return [ymin_pixel, xmin_pixel, ymax_pixel, xmax_pixel]
+
+
+class Point:
+    x: float
+    y: float
+
+    def __init__(self, x: float, y: float):
+        self.x = x
+        self.y = y
+
+
+def convert_normalized_point_to_pixel_point(
+    normalized_point: Point, original_image_size: tuple[int, int], scale: int
+) -> Point:
+    """
+    正規化されたポイントを画像のピクセルサイズに基づいて変換します。
+    Args:
+        point (Point): 正規化されたポイント。
+        original_image_size (tuple[int, int]): 画像の元のサイズ (width, height)。
+        scale (int): 正規化に使用されたスケール値。
+    Returns:
+        Point: ピクセル単位に変換されたポイント。
+    """
+    original_width, original_height = original_image_size
+    x_pixel = int((normalized_point.x / scale) * original_width)
+    y_pixel = int((normalized_point.y / scale) * original_height)
+
+    return Point(x_pixel, y_pixel)

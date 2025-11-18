@@ -18,7 +18,12 @@ import wave
 from pathlib import Path
 import uuid
 import os
-from utils import load_json, normalize_bounding_box_with_image_pixel_size
+from utils import (
+    load_json,
+    convert_normalized_bbox_to_pixel_bbox,
+    Point,
+    convert_normalized_point_to_pixel_point,
+)
 from genaiappi_models_utils import (
     get_generate_text_model_name,
     get_generate_image_model_name,
@@ -796,7 +801,7 @@ def _normalize_bounding_box(result: list[Any], image_bytes: bytes):
     """
     original_image = Image.open(BytesIO(image_bytes))
     for bounding_box_info in result:
-        normalized_box = normalize_bounding_box_with_image_pixel_size(
+        normalized_box = convert_normalized_bbox_to_pixel_bbox(
             bounding_box=bounding_box_info["bounding_box"],
             original_image_size=(original_image.width, original_image.height),
             scale=genaiapi_config["normalization_scale"],
@@ -892,6 +897,31 @@ async def detect_objects(
     return results
 
 
+def _normalized_point_to_pixel_point(
+    point_info_response: dict[str, Any], image_bytes: bytes
+):
+    """
+    正規化された座標をピクセル座標に変換します。この関数はpoint_info_responseに対して副作用があります。
+    画像のバウンディングボックスは[ y, x ]形式で並んでいることを想定しています。
+    なお、point_info_responseはAPIの戻り値をそのまま渡すことを想定しています。
+    """
+    for point_info in point_info_response:
+        normalized_point = Point(
+            y=point_info["point"][0],
+            x=point_info["point"][1],
+        )
+
+        (width, height) = Image.open(BytesIO(image_bytes)).size
+
+        pixel_point = convert_normalized_point_to_pixel_point(
+            normalized_point=normalized_point,
+            original_image_size=(width, height),
+            scale=1000,
+        )
+
+        point_info["point"] = [pixel_point.y, pixel_point.x]
+
+
 @app.post(
     f"{app_base_path}/robotics/task-orchestration",
     tags=["ai"],
@@ -905,8 +935,8 @@ async def get_task_orchestration(
     task_source: Annotated[
         str,
         Form(
-            description="生成した欲しいタスクの内容を示した文字列です。",
-            examples=['{"taskSource": "棚からリンゴを取ってください。"}'],
+            description="行動を説明するための作業内容を保持した文字列のリストです。",
+            examples=['{"task_source": ["アップルパイにする。"]}'],
         ),
     ],
 ):
@@ -919,31 +949,33 @@ async def get_task_orchestration(
         )
 
     prompt = f"""
-次の作業を完了するための手順を説明してください。
-# 作業内容
-{source}
-作業中触れる必要のあるobjectの座標を返してください。
-以下のJSON形式に従ってください。
-# 出力形式
-[{{"point": [y, x],
-"label": <object_name>}}, ...]
-座標は[y, x]形式で、0-1000に正規化してください。
-    """
+            次の作業を完了するための行動を説明してください。
+            # 作業内容
+            {source}
+            作業完了までに触れる必要のあるobjectの座標とobjectに対して必要なaction、
+            及びobjectを特定するためのlabelを順番にリストにして返してください。
+            以下のJSON形式に従ってください。
+            # 出力形式
+            [{{ "action": ["<action>", ...],
+                "point": [y, x],
+                "label": <label>}}, ...]
+            座標は[y, x]形式で、0-1000に正規化してください。
+            """
+
     results = {}
 
     for file in files:
         try:
             image_bytes = await file.read()
-            result = _request_robotics_api(
+            response_json = _request_robotics_api(
                 file=file,
                 image_bytes=image_bytes,
                 prompt=prompt,
             )
 
-            # TODO: 座標の正規化が必要ならばここで行う。
-            # _normalize_bounding_box(result, image_bytes)
+            _normalized_point_to_pixel_point(response_json, image_bytes)
 
-            results[file.filename] = result
+            results[file.filename] = response_json
         except Exception as err:
             code = hasattr(err, "status_code") and getattr(err, "status_code")
             if not code:

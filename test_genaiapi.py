@@ -25,6 +25,7 @@ from genaiappi_models_utils import (
 )
 import os
 import json
+import pathlib
 
 test_client = TestClient(app)
 
@@ -398,12 +399,10 @@ def test_detect_objects():
             files = [
                 ("files", (file_name, image_file, "image/png")),
             ]
-            data = {
-                "targets": json.dumps(["apple"])
-            }
-            response = test_client.post("/generate/robotics/detect-objects/", 
-                                        files=files,
-                                        data=data)
+            data = {"targets": json.dumps(["apple"])}
+            response = test_client.post(
+                "/generate/robotics/detect-objects/", files=files, data=data
+            )
 
         assert response.status_code == 200
 
@@ -414,5 +413,30 @@ def test_detect_objects():
         for obj in result_json[file_name]:
             assert obj["object"] == "apple"
             assert len(obj["bounding_box"]) == 4
+
+        print(result_json)
+
+
+@pytest.mark.timeout(15)
+def test_task_orchestration():
+    with TestClient(app) as test_client:
+        file_name = "sample_room.png"
+        home_dir = pathlib.Path.home()
+        file_path = home_dir / "share" / "img" / "genai" / file_name
+        with open(file_path, "rb") as image_file:
+            files = [
+                ("files", (file_name, image_file, "image/png")),
+            ]
+            data = {"task_source": json.dumps(["この部屋を掃除する。"])}
+            response = test_client.post(
+                "/generate/robotics/task-orchestration/", files=files, data=data
+            )
+
+        assert response.status_code == 200
+
+        result_json = response.json()
+        assert result_json is not None
+        assert file_name in result_json
+        assert len(result_json[file_name]) > 0
 
         print(result_json)

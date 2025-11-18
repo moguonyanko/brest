@@ -890,3 +890,68 @@ async def detect_objects(
             )
 
     return results
+
+
+@app.post(
+    f"{app_base_path}/robotics/task-orchestration",
+    tags=["ai"],
+    response_model=dict[str, Any],
+)
+async def get_task_orchestration(
+    files: Annotated[
+        list[UploadFile], File(description="アップロードされたファイル群です。")
+    ],
+    # 内容はリストだがJSONの文字列として渡されてくるのでstr型で受け取る。
+    task_source: Annotated[
+        str,
+        Form(
+            description="生成した欲しいタスクの内容を示した文字列です。",
+            examples=['{"taskSource": "棚からリンゴを取ってください。"}'],
+        ),
+    ],
+):
+    try:
+        source = json.loads(task_source)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="パラメータのJSONデコードに失敗しました。有効なJSON文字列を指定してください。",
+        )
+
+    prompt = f"""
+次の作業を完了するための手順を説明してください。
+# 作業内容
+{source}
+作業中触れる必要のあるobjectの座標を返してください。
+以下のJSON形式に従ってください。
+# 出力形式
+[{{"point": [y, x],
+"label": <object_name>}}, ...]
+座標は[y, x]形式で、0-1000に正規化してください。
+    """
+    results = {}
+
+    for file in files:
+        try:
+            image_bytes = await file.read()
+            result = _request_robotics_api(
+                file=file,
+                image_bytes=image_bytes,
+                prompt=prompt,
+            )
+
+            # TODO: 座標の正規化が必要ならばここで行う。
+            # _normalize_bounding_box(result, image_bytes)
+
+            results[file.filename] = result
+        except Exception as err:
+            code = hasattr(err, "status_code") and getattr(err, "status_code")
+            if not code:
+                code = 500
+
+            raise HTTPException(
+                status_code=code,
+                detail=f"画像処理エラー: ファイル {file.filename} の処理中にエラーが発生しました。{err=}, {type(err)=}",
+            )
+
+    return results

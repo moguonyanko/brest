@@ -55,13 +55,9 @@ app_base_path = "/generate"
 genaiapi_config = load_json(path="genaiapi_config.json")
 
 
-# Gemini APIのキー読み込み
-api_keys = load_json(path="genaiapi_keys.json")["api_keys"]
-# APIキーを使い分ける必要が生じたらcommon以外を参照できるように以下のコードを修正する。
-api_key = api_keys["common"]
-
-
 def get_genai_client():
+    # Gemini APIのキー読み込み
+    api_key = os.environ["GEMINI_API_KEY"]
     timeout_ms = genaiapi_config["resuest_timeout_ms"]
     return genai.Client(api_key=api_key, http_options={"timeout": timeout_ms})
 
@@ -987,3 +983,67 @@ async def get_task_orchestration(
             )
 
     return results
+
+
+def _dump_mapps_graounging_response(response: types.GenerateContentResponse):
+    print("Generated Response:")
+    print(response.text)
+
+    if grounding := response.candidates[0].grounding_metadata:
+        if chunks := grounding.grounding_chunks:
+            print("-" * 40)
+            print("Sources:")
+            for chunk in chunks:
+                print(f"- [{chunk.maps.title}]({chunk.maps.uri})")
+
+
+@app.post(
+    f"{app_base_path}/reverse-address-matching/",
+    tags=["ai"],
+    response_model=dict[str, Any],
+)
+async def reverse_address_matching(
+    body: Annotated[
+        dict,
+        Body(examples=[{"contents": {"coords": [35.6983807, 139.7696238]}}]),
+    ],
+):
+    try:
+        contents = body["contents"]
+        coords = contents["coords"]
+
+        prompt = f"""
+        次の座標の住所を返してください。座標は緯度、経度の順番で与えられます。
+        座標: {coords}
+        出力形式はJSON形式で、各住所情報はaddress, latitude, longitudeフィールドを持つオブジェクトとしてください。
+        例:
+        {{
+            "address": "東京都千代田区千代田1-1",
+            "latitude": 35.6983807,
+            "longitude": 139.7696238
+        }}
+        住所情報が見つからない場合は、addressフィールドに空文字を設定してください。
+        """
+
+        [latitude, longitude] = coords
+
+        response = get_genai_client().models.generate_content(
+            model=get_generate_text_model_name(),
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                tools=[types.Tool(google_maps=types.GoogleMaps())],
+                tool_config=types.ToolConfig(
+                    retrieval_config=types.RetrievalConfig(
+                        lat_lng=types.LatLng(latitude=latitude, longitude=longitude)
+                    )
+                ),
+            ),
+        )
+
+        _dump_mapps_graounging_response(response)
+
+        return json.loads(response.text)
+    except Exception as err:
+        raise HTTPException(
+            status_code=500, detail=f"Generation Error: {err=}, {type(err)=}"
+        )

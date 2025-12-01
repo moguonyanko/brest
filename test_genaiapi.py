@@ -446,3 +446,28 @@ def test_task_orchestration():
             assert "label" in task
 
         print(result_json)
+
+
+@pytest.mark.timeout(15)
+def test_reverse_address_matching():
+    with TestClient(app) as test_client:
+        contents = {
+            "contents": {
+                {"coords": [35.6983807,139.7696238]}
+            }
+        }
+        data = json.dumps(contents)
+        response = test_client.post("/generate/reverse-address-matching/", data=data)
+
+        assert response.status_code == 200
+
+        result_json = response.json()
+        assert result_json is not None
+        assert "address" in result_json
+        assert result_json["address"] is not None
+        assert result_json["address"] == "東京都千代田区外神田１"
+        
+        assert "coordinates" in result_json
+        assert len(result_json["coordinates"]) == 2  # 緯度と経度
+
+        print(result_json)

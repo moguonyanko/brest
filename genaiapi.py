@@ -1004,10 +1004,15 @@ def _dump_mapps_graounging_response(response: types.GenerateContentResponse):
 )
 async def reverse_address_matching(
     body: Annotated[
-        dict,
+        dict[str, Any],
         Body(examples=[{"contents": {"coords": [35.6983807, 139.7696238]}}]),
     ],
 ):
+    """
+    座標から住所を取得します。
+    住所情報が見つからない場合は、addressフィールドに空文字を設定してください。
+    TODO: generate_content時にクライアント側で接続が閉じられているというエラーとなる。
+    """
     try:
         contents = body["contents"]
         coords = contents["coords"]

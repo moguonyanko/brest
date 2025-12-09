@@ -1003,9 +1003,9 @@ def _dump_mapps_graounging_response(response: types.GenerateContentResponse):
     response_model=dict[str, Any],
 )
 async def reverse_address_matching(
-    body: Annotated[
-        dict[str, Any],
-        Body(examples=[{"contents": {"coords": [35.6983807, 139.7696238]}}]),
+    contents: Annotated[
+        dict[str, list[float]],
+        Body(examples=[{"coords": [35.6983807, 139.7696238]}]),
     ],
 ):
     """
@@ -1014,25 +1014,21 @@ async def reverse_address_matching(
     TODO: generate_content時にクライアント側で接続が閉じられているというエラーとなる。
     """
     try:
-        contents = body["contents"]
         coords = contents["coords"]
-
-        prompt = f"""
-        次の座標の住所を返してください。座標は緯度、経度の順番で与えられます。
-        座標: {coords}
-        出力形式はJSON形式で、各住所情報はaddress, latitude, longitudeフィールドを持つオブジェクトとしてください。
-        例:
-        {{
-            "address": "東京都千代田区千代田1-1",
-            "latitude": 35.6983807,
-            "longitude": 139.7696238
-        }}
-        住所情報が見つからない場合は、addressフィールドに空文字を設定してください。
-        """
-
         [latitude, longitude] = coords
 
-        response = get_genai_client().models.generate_content(
+        prompt = f"""
+        緯度と経度が指す住所を以下の形式で出力してください。
+        出力例:
+        {{
+            "address": "GoogleMapsの逆ジオコーディングで取得した住所"
+        }}       
+        緯度と経度はRetrievalConfigで指定されています。 
+        """
+
+        client = get_genai_client()
+
+        response = client.models.generate_content(
             model=get_generate_text_model_name(),
             contents=prompt,
             config=types.GenerateContentConfig(

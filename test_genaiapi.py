@@ -451,13 +451,21 @@ def test_task_orchestration():
 @pytest.mark.timeout(15)
 def test_reverse_address_matching():
     with TestClient(app) as test_client:
-        contents = {
-            "contents": {
-                {"coords": [35.6983807,139.7696238]}
-            }
-        }
-        data = json.dumps(contents)
-        response = test_client.post("/generate/reverse-address-matching/", data=data)
+        data = { "coords": [35.6983807,139.7696238] }
+        response = test_client.post("/generate/reverse-address-matching/", json=data)
+
+        # デバッグ用エラー出力
+        if response.status_code != 200:
+            print("-" * 50)
+            print(f"ステータスコード: {response.status_code}")
+            print("レスポンスJSON（エラー詳細）:")
+            try:
+                print(response.json())
+            except Exception as e:
+                print(f"JSONパースエラー: {e}")
+                print("レスポンステキスト:")
+                print(response.text)
+            print("-" * 50)
 
         assert response.status_code == 200
 

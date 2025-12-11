@@ -111,6 +111,22 @@
       ],
       "jinja": true,
       "justMyCode": true
+    },
+    {
+      "name": "FastAPI: Security API Debugging",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "security:app",
+        "--reload",
+        "--port",
+        "9006",
+        "--log-level",
+        "debug"
+      ],
+      "jinja": true,
+      "justMyCode": true
     }    
-  ]
+   ]
 }

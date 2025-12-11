@@ -27,11 +27,8 @@ async def get_id(body: dict):
     * https://github.com/msanft/CVE-2025-55182/blob/main/poc.py
     * https://github.com/ejpir/CVE-2025-55182-research?tab=readme-ov-file
     '''
-    target_url = "http://localhost:8081"
     # ターゲットURLと実行コマンドを設定
-    # base_url = sys.argv[3] if len(sys.argv) > 1 else target_url
-    base_url = target_url
-    # executable_command = sys.argv[4] if len(sys.argv) > 2 else "id"
+    base_url = "http://localhost:8081"
     executable_command = "id"
 
     # ----------------------------------------------------

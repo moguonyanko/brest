@@ -9,7 +9,7 @@ app = FastAPI(
     version="0.0.1",
 )
 
-app_base_path = "/security"
+app_base_path = "/poc"
 
 
 @app.post(f"{app_base_path}/react2shell/command/", tags=["poc"], response_model=dict)

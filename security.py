@@ -24,6 +24,7 @@ def dns_tunneling(original_data: str, c2_domain: str):
     resolver = dns.resolver.Resolver(configure=False)
     # dig @127.0.0.1 と同じことをするためにネームサーバーを指定
     resolver.nameservers = ['127.0.0.1']
+    resolver.port = 1053 # 検証用DNSサーバーの動作しているポート
     
     # 2. 30文字ずつに分割してループ
     chunk_size = 30

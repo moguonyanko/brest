@@ -135,6 +135,9 @@ async def execute_command(body: dict):
     headers = {"Next-Action": "x"}  # Server Actionリクエストであることを示す。
     res = requests.post(base_url, files=files, headers=headers, timeout=10)
     print(res.status_code)
+    
+    # content（生のバイト列）を明示的に UTF-8 でデコードする
+    # errors='replace' を入れることで、万が一壊れたバイナリがあってもエラーで止まらない    
     decoded_result = res.content.decode('utf-8', errors='replace')
     print(decoded_result) # res.textでは文字化けしてしまう。
 

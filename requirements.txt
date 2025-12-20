@@ -30,3 +30,4 @@ pytesseract
 httpx
 playwright
 certifi
+dnspython

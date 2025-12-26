@@ -1139,3 +1139,12 @@ async def get_sample_xml(xml_name: Annotated[str, Field(examples=["sample"])]):
         content = xml_file.read()
 
     return Response(content=content, media_type="application/xml")
+
+@brest_service.post(APP_ROOT + "testusers/", response_model=dict[str, str])
+async def register_test_users(data: list[str] = Form(...)):
+    sample_test_users = {}
+    for param in data:
+        userid, address = param.split(":", 1)
+        sample_test_users[userid] = address
+
+    return sample_test_users

@@ -241,8 +241,10 @@ sample_users = {
 # デフォルト値を指定していないパラメータは必須パラメータとなる。
 @brest_service.get(APP_ROOT + "groups/{group_name}/users/{user_name}", tags=["users"])
 async def get_user(group_name: str, user_name: str, score: Union[int, None] = None):
-    user = sample_users.get(group_name).get(user_name)
-    if user == None or score and user.get("score") < score:
+    group: dict[str, dict[str, Any]] = sample_users.get(group_name, {})
+    user: dict[str, Any] = group.get(user_name, {})
+    user_score: int = user.get("score", 0)
+    if score is not None and user_score < score:
         return {}
     return user
 
@@ -261,7 +263,11 @@ async def register_item(
 
 
 def get_sample_members():
-    sample = {"members": [{"id": "Mike"}, {"id": "Taro"}]}
+    sample = {
+        "members": [{"id": "Mike"}, {"id": "Taro"}],
+        "p": None,
+        "q": None,
+    }
     return sample
 
 
@@ -274,6 +280,7 @@ async def read_query(
     ),
 ):
     sample = get_sample_members()
+    # pキーが無いと警告される。
     sample.update({"p": p})
     if q:
         sample.update({"q": q})
@@ -341,7 +348,7 @@ class MyUser(BaseModel):
     age: int
 
 
-sample_my_users: [MyUser] = [MyUser(name="Masao", age=38)]
+sample_my_users: list[MyUser] = [MyUser(name="Masao", age=38)]
 
 sample_item_dict = {"1": {"item": sample_items[0], "user": sample_my_users[0]}}
 
@@ -383,14 +390,14 @@ async def save_item(
     test_code: Annotated[int, Body(ge=0)] = 0,
 ):
     new_item = {
-        item_id: {
+        str(item_id): {
             "item": item,
             "user": user,
+            "memo": memo,
+            "test_code": test_code,
         }
     }
     sample_item_dict.update(new_item)
-    sample_item_dict.update({"memo": memo})
-    sample_item_dict.update({"test_code": test_code})
     return sample_item_dict
 
 

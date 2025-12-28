@@ -107,9 +107,9 @@ async def brest_root():
     return {"message": "Brest Root"}
 
 
-# 関数名が衝突する場合は定義された順に評価される。
+# もし関数名が衝突した場合は定義された順に評価される。
 @brest_service.get(APP_ROOT + "echo/hello")
-async def brest_echo():
+async def brest_echo_hello():
     return {"message": "World"}
 
 
@@ -149,7 +149,7 @@ async def get_model_description(model: Models):
         return {"name": model.name, "message": "foonet is poor"}
     if model.value == "bar":
         return {"name": model.name, "message": "barnet is good"}
-    return {{"name": model.name, "message": "baznet is stupid"}}
+    return {"name": model.name, "message": "baznet is stupid"}
 
 
 @brest_service.get(APP_ROOT + "files/{file_path:path}")
@@ -188,7 +188,7 @@ class MyItem(BaseModel):
         )
 
 
-sample_items: [MyItem] = [
+sample_items: list[MyItem] = [
     MyItem(
         item_name="𩸽",
         price=300,
@@ -217,12 +217,15 @@ async def read_item(
     end: int = len(sample_items),
     description: Union[str, None] = None,
     nameonly: bool = False,
-):
+) -> list[str] | list[MyItem]:
     items = sample_items[start:end]
+
     if nameonly:
-        items = [item["item_name"] for item in items]
+        return [item.item_name for item in items]
+    
     if description:
-        items.append({"description": description})
+        items.append(MyItem(item_name="Special item", description=description, price=0))
+
     return items
 
 
@@ -1251,7 +1254,7 @@ middlewareでも同じことはできそうだがログ出力などはBackground
 
 
 @brest_service.post(APP_ROOT + "testlog/")
-async def get_backgroud_sample(text: str, background_tasks: BackgroundTasks):
+async def get_backgroud_test_log_sample(text: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(print_log, text=text)
     return {"test": "OK"}
 

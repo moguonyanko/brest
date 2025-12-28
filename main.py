@@ -31,8 +31,8 @@ from passlib.context import CryptContext
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from enum import Enum
 import json
-from typing import Union, Annotated, Any
-from pydantic import BaseModel, Field, HttpUrl, EmailStr
+from typing import Union, Annotated, Any, Generator
+from pydantic import BaseModel, Field, HttpUrl, EmailStr, TypeAdapter
 from uuid import UUID
 from datetime import datetime, time, timedelta, timezone
 import os
@@ -188,6 +188,11 @@ class MyItem(BaseModel):
         )
 
 
+# HttpUrlは文字列を妥当なURLと認めてくれないので、TypeAdapterを使ってHttpUrlに変換する関数を用意する。
+def parse_url(url_str: str) -> HttpUrl:
+    return TypeAdapter(HttpUrl).validate_python(url_str)
+
+
 sample_items: list[MyItem] = [
     MyItem(
         item_name="𩸽",
@@ -195,10 +200,15 @@ sample_items: list[MyItem] = [
         tags={"test", "sample"},
         images=[
             MyImage(
-                url="https://localhost/sampleimages/", file_name="sampleimage1.jpg"
+                url=parse_url("https://localhost/sampleimages/"),
+                file_name="sampleimage1.jpg",
             ),
-            MyImage(url="https://myhost/testimages/", file_name="testimage1.png"),
-            MyImage(url="https://myhost/testimages/", file_name="testimage2.png"),
+            MyImage(
+                url=parse_url("https://myhost/testimages/"), file_name="testimage1.png"
+            ),
+            MyImage(
+                url=parse_url("https://myhost/testimages/"), file_name="testimage2.png"
+            ),
         ],
     ),
     MyItem(item_name="𠮷野家", price=10000),
@@ -222,7 +232,7 @@ async def read_item(
 
     if nameonly:
         return [item.item_name for item in items]
-    
+
     if description:
         items.append(MyItem(item_name="Special item", description=description, price=0))
 
@@ -330,7 +340,7 @@ async def get_item_by_id_and_annotated(
     q: str | None = None,
 ):
     items = get_sample_items()
-    item = items.get(int(item_id)) or {}
+    item: dict[str, Any] = items.get(int(item_id)) or {}
     if item and q:
         item.update({"q": q})
     if size:
@@ -426,8 +436,12 @@ async def get_duration(
     repeat_at: Annotated[time | None, None] = None,
     proccess_after: Annotated[timedelta | None, None] = None,
 ):
-    start_process = start_datetime + proccess_after
-    duration = end_datetime - start_process
+    actual_start = start_datetime or datetime.now()
+    actual_process = proccess_after or timedelta(0)
+    actual_end = end_datetime or datetime.now()
+
+    start_process = actual_start + actual_process
+    duration = actual_end - start_process
     return {"item_id": item_id, "duration": duration}
 
 
@@ -458,8 +472,8 @@ class MyProfileInput(MyProfile):
     password: str = Field(examples=["Brest2024_pass"])
 
 
-sample_my_profiles = [
-    MyProfile(
+sample_my_profiles: list[MyProfile] = [
+    MyProfileInput(
         name="Mike",
         password="MiPass8374W",
         age=43,
@@ -537,7 +551,7 @@ async def get_response_item(item_id: str):
     # response_model_include=["item_name", "price", "tax", "item_name"],
     response_model_include={"item_name", "price", "tax"},
 )
-async def get_response_item_nodesc(item_id: str):
+async def get_response_item_without_desc(item_id: str):
     if item_id in sample_response_items:
         return sample_response_items.get(item_id)
     else:
@@ -748,7 +762,7 @@ async def get_sample_record(record_id: str):
         raise HTTPException(
             status_code=404,
             detail=f"{record_id}に対応するレコードは存在しません",
-            headers={"X-HasError": True},
+            headers={"X-HasError": "True"},
         )
     return sample_records.get(record_id)
 
@@ -814,7 +828,7 @@ async def get_sample_resource(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Adult only"
         )
-    if len(message) <= 0:
+    if message and len(message) <= 0:
         raise RequestValidationError(errors=["Bad empty message"])
     return {"user_name": user_name}
 
@@ -1013,7 +1027,7 @@ class MyAdminContextManager:
         return self.loader.close()
 
 
-def get_test_admin_username() -> str:
+def get_test_admin_username() -> Generator[str, Any, Any]:
     with MyAdminContextManager() as manager:
         yield manager
 
@@ -1093,10 +1107,10 @@ class AuthUser(BaseModel):
 
 # こういう継承はあまり好ましくない。
 class AuthUserInDB(AuthUser):
-    hashed_password: str
+    hashed_password: str = ""
 
 
-def lookup_auth_user(db, token: str) -> AuthUser:
+def lookup_auth_user(db, token: str) -> AuthUserInDB:
     if token in db:
         user_dict = db[token]
         return AuthUserInDB(**user_dict)
@@ -1137,7 +1151,7 @@ async def get_current_active_user(
     return current_user
 
 
-def authenticate_user(db: dict[str, Any], username: str, password: str) -> bool:
+def is_authenticated_user(db: dict[str, Any], username: str, password: str) -> bool:
     user = lookup_auth_user(db, username)
     if not user:
         return False
@@ -1171,14 +1185,16 @@ async def read_authuser_me(
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ):
-    user = authenticate_user(fake_auth_user_db, form_data.username, form_data.password)
+    user = is_authenticated_user(
+        fake_auth_user_db, form_data.username, form_data.password
+    )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="認証エラーです"
         )
     access_token_expire = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expire_delta=access_token_expire
+        data={"sub": form_data.username}, expire_delta=access_token_expire
     )
     return MyToken(access_token=access_token, token_type="bearer")
 

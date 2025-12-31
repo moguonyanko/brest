@@ -495,7 +495,12 @@ def _validate_points(request: ClusterRequest, n_points: int):
         )
 
 
-@app.post("/cluster/", tags=["geometry"], response_model=dict[str, Any])
+@app.post(
+    "/cluster/",
+    tags=["geometry"],
+    response_model=dict[str, Any],
+    description="k-means法に基づいて拠点をクラスタリングし、各クラスタの最小外接矩形を求める。",
+)
 async def execute_kmeans_clustering(request: ClusterRequest):
     data = np.array([[p.lat, p.lng] for p in request.points])
     n_points = len(data)

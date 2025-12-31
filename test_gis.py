@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 from gis import app
-from pytest import approx
+from pytest import approx, fixture
 
 #Webアプリケーションが起動していなくてもTestClientによるテストは実行できる。
 test_client = TestClient(app)
@@ -124,3 +124,93 @@ def test_cross_check():
                                 json={"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[139.63920292723924,35.44528477213635],[139.63984460501422,35.44269282578362],[139.63774867207144,35.44401970338626],[139.6383402334955,35.44299558554904],[139.64009026937543,35.443326919216034],[139.64195818571795,35.442724984676666],[139.64219422011126,35.44454732194956],[139.64042302267546,35.444260670394954],[139.64041069847997,35.44528477213635],[139.63920292723924,35.44528477213635]]]},"properties":{}}]})
     assert response.status_code == 200
     assert response.json() == {"result":True}
+
+
+@fixture
+def current_client():
+    yield TestClient(app)
+
+
+def test_execute_kmeans_clustering_balance(current_client):
+    """
+    10個の拠点を3人で分割した場合、各矩形に3〜4個の拠点が
+    含まれているか（均等性のテスト）を確認します。
+    """
+    # テスト用の入力データ
+    test_data = {
+        "k": 3,
+        "points": [
+            {"lat": 35.6, "lng": 139.7}, {"lat": 35.61, "lng": 139.71},
+            {"lat": 35.62, "lng": 139.72}, {"lat": 35.63, "lng": 139.73},
+            {"lat": 35.64, "lng": 139.74}, {"lat": 35.65, "lng": 139.75},
+            {"lat": 35.66, "lng": 139.76}, {"lat": 35.67, "lng": 139.77},
+            {"lat": 35.68, "lng": 139.78}, {"lat": 35.69, "lng": 139.79}
+        ]
+    }
+
+    # API呼び出し
+    response = current_client.post("/cluster/", json=test_data)
+    
+    # レスポンスのステータスコード確認
+    assert response.status_code == 200
+    
+    data = response.json()
+    rectangles = data["rectangles"]
+    
+    # 指定した人数分（k個）の矩形が返ってきているか
+    assert len(rectangles) == 3
+    
+    # 各矩形の拠点数が期待通り（3個か4個）かを確認
+    counts = [rect["count"] for rect in rectangles]
+    for count in counts:
+        assert count in [3, 4]
+    
+    # 全拠点の合計が一致するか
+    assert sum(counts) == 10
+
+
+def test_execute_kmeans_clustering_structure(current_client):
+    """
+    レスポンスのデータ構造（緯度経度の形式など）が正しいかを確認します。
+    """
+    test_data = {
+        "k": 1,
+        "points": [{"lat": 35.0, "lng": 135.0}, {"lat": 36.0, "lng": 136.0}]
+    }
+    response = current_client.post("/cluster/", json=test_data)
+    rect = response.json()["rectangles"][0]
+    
+    # boundsが [[min_lat, min_lng], [max_lat, max_lng]] の形式か
+    assert len(rect["bounds"]) == 2
+    assert rect["bounds"][0][0] == 35.0  # min_lat
+    assert rect["bounds"][1][0] == 36.0  # max_lat
+
+
+def test_execute_kmeans_clustering_insufficient_points(current_client):
+    """
+    拠点数よりも担当者数(k)が多い場合に、400エラーが返るか確認します。
+    """
+    test_data = {
+        "k": 5,
+        "points": [
+            {"lat": 35.0, "lng": 135.0},
+            {"lat": 35.1, "lng": 135.1}
+        ] # 2拠点しかないのに5分割しようとする
+    }
+    
+    response = current_client.post("/cluster/", json=test_data)
+    
+    # 400エラーが返ってくることを期待
+    assert response.status_code == 400
+
+
+def test_execute_kmeans_clustering_invalid_k(current_client):
+    """
+    kが0以下の場合に、400エラーが返るか確認します。
+    """
+    test_data = {
+        "k": 0,
+        "points": [{"lat": 35.0, "lng": 135.0}]
+    }
+    response = current_client.post("/cluster/", json=test_data)
+    assert response.status_code == 400

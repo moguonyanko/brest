@@ -27,6 +27,7 @@ import networkx as nx
 import osmnx as ox
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from fastapi_mcp import FastApiMCP
+import numpy as np
 from k_means_constrained import KMeansConstrained
 
 app = FastAPI(
@@ -471,8 +472,59 @@ async def execute_crosscheck(target: FeatureCollection):
     return {"result": result}
 
 
-@app.post("/kmeansclustering/", tags=["geometry"], response_model=dict[str, Any])
-async def execute_kmeans_clustering(
-    points: FeatureCollection, n_clusters: Annotated[int, Body()]
-):
-    pass
+class ClusterPoint(BaseModel):
+    lng: float
+    lat: float
+
+
+class ClusterRequest(BaseModel):
+    points: list[ClusterPoint]
+    k: int  # 担当者の数
+
+
+def _validate_points(request: ClusterRequest, n_points: int):
+    # バリデーション: 拠点数がkより少ない場合はエラー
+    if n_points < request.k:
+        raise HTTPException(
+            status_code=400,
+            detail=f"拠点数({n_points})は担当者数({request.k})以上である必要があります。",
+        )
+    if request.k <= 0:
+        raise HTTPException(
+            status_code=400, detail="担当者数は1以上で指定してください。"
+        )
+
+
+@app.post("/cluster/", tags=["geometry"], response_model=dict[str, Any])
+async def execute_kmeans_clustering(request: ClusterRequest):
+    data = np.array([[p.lat, p.lng] for p in request.points])
+    n_points = len(data)
+
+    _validate_points(request, n_points)
+
+    # 1人あたりの拠点数を計算（均等に割り振る制約）
+    # 例：21拠点、5人の場合、4〜5拠点になるよう制限
+    min_size = n_points // request.k
+    max_size = (n_points + request.k - 1) // request.k
+
+    # 制約付きk-meansの実行
+    clf = KMeansConstrained(
+        n_clusters=request.k, size_min=min_size, size_max=max_size, random_state=42
+    )
+    labels = clf.fit_predict(data)
+
+    rectangles = []
+    for i in range(request.k):
+        cluster_data = data[labels == i]
+        if len(cluster_data) > 0:
+            min_lat, min_lng = cluster_data.min(axis=0)
+            max_lat, max_lng = cluster_data.max(axis=0)
+            rectangles.append(
+                {
+                    "worker_id": i + 1,
+                    "bounds": [[min_lat, min_lng], [max_lat, max_lng]],
+                    "count": len(cluster_data),
+                }
+            )
+
+    return {"rectangles": rectangles}

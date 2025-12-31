@@ -31,3 +31,4 @@ httpx
 playwright
 certifi
 dnspython
+k-means-constrained

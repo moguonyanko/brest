@@ -472,17 +472,18 @@ async def execute_crosscheck(target: FeatureCollection):
     return {"result": result}
 
 
-class ClusterPoint(BaseModel):
-    lng: float
-    lat: float
+# GeoJSONリクエスト用のモデル
+class GeoJSONFeature(BaseModel):
+    properties: dict[str, Any]
+    geometry: dict[str, Any]
 
 
-class ClusterRequest(BaseModel):
-    points: list[ClusterPoint]
-    k: int  # 担当者の数
+class GeoJSONRequest(BaseModel):
+    features: list[GeoJSONFeature]
+    k: int  # 担当者数（リクエストに含める）
 
 
-def _validate_points(request: ClusterRequest, n_points: int):
+def _validate_points(request: GeoJSONRequest, n_points: int):
     # バリデーション: 拠点数がkより少ない場合はエラー
     if n_points < request.k:
         raise HTTPException(
@@ -501,8 +502,15 @@ def _validate_points(request: ClusterRequest, n_points: int):
     response_model=dict[str, Any],
     description="k-means法に基づいて拠点をクラスタリングし、各クラスタの最小外接矩形を求める。",
 )
-async def execute_kmeans_clustering(request: ClusterRequest):
-    data = np.array([[p.lat, p.lng] for p in request.points])
+async def execute_kmeans_clustering(request: GeoJSONRequest):
+    # GeoJSONから座標リスト [lat, lng] を抽出
+    points = []
+    for feature in request.features:
+        if feature.geometry["type"] == "Point":
+            lng, lat = feature.geometry["coordinates"]
+            points.append([lat, lng])
+    
+    data = np.array(points)
     n_points = len(data)
 
     _validate_points(request, n_points)

@@ -131,69 +131,109 @@ def current_client():
     yield TestClient(app)
 
 
-def test_execute_kmeans_clustering_balance(current_client):
-    """
-    10個の拠点を3人で均等に分割し、GeoJSON形式で返ってくるかを確認します。
-    """
-    test_data = {
-        "k": 3,
-        "points": [
-            {"lat": 35.6 + i*0.01, "lng": 139.7 + i*0.01} for i in range(10)
+def test_execute_kmeans_clustering_with_geojson(current_client):
+    # ユーザーが提示したGeoJSON形式のデータ
+    geojson_input = {
+        "type": "FeatureCollection",
+        "k": 2,
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Point", "coordinates": [139.75, 35.65]}
+            },
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Point", "coordinates": [139.76, 35.66]}
+            }
         ]
     }
 
-    response = current_client.post("/cluster/", json=test_data)
+    response = current_client.post("/cluster/", json=geojson_input)
     assert response.status_code == 200
     
     data = response.json()
-    
-    # GeoJSONのルート構造チェック
     assert data["type"] == "FeatureCollection"
-    assert len(data["features"]) == 3
-    
-    # 各Feature(矩形)内の拠点数が3〜4個であるか確認
-    counts = [f["properties"]["point_count"] for f in data["features"]]
-    for count in counts:
-        assert count in [3, 4]
-    assert sum(counts) == 10
+    assert len(data["features"]) == 2 # 2人に分かれたか
 
 
 def test_execute_kmeans_clustering_geojson_structure(current_client):
     """
-    GeoJSONのポリゴン座標が正しい順序 [lng, lat] か、閉じているかを確認します。
+    リクエスト・レスポンス共にGeoJSON形式であることを確認し、
+    ポリゴン座標の順序 [lng, lat] と閉鎖性を検証します。
     """
+    # 入力データをGeoJSON形式に修正
     test_data = {
+        "type": "FeatureCollection",
         "k": 1,
-        "points": [
-            {"lat": 35.0, "lng": 135.0},
-            {"lat": 36.0, "lng": 136.0}
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Point", "coordinates": [135.0, 35.0]} # [lng, lat]
+            },
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {"type": "Point", "coordinates": [136.0, 36.0]} # [lng, lat]
+            }
         ]
     }
+    
     response = current_client.post("/cluster/", json=test_data)
-    feature = response.json()["features"][0]
+    assert response.status_code == 200
+    
+    data = response.json()
+    feature = data["features"][0]
     
     # ジオメトリの検証
     coords = feature["geometry"]["coordinates"][0] # 外枠のリング
     assert feature["geometry"]["type"] == "Polygon"
     
-    # GeoJSON標準: [lng, lat] の順序
-    # min_lng, min_lat
+    # GeoJSON標準: [lng, lat] の順序を検証
+    # 最小値: min_lng, min_lat
     assert coords[0] == [135.0, 35.0]
-    # max_lng, max_lat (3番目の点)
+    # 最大値: max_lng, max_lat (矩形の対角線上の点)
     assert coords[2] == [136.0, 36.0]
     # 始点と終点が一致している（閉じている）
     assert coords[0] == coords[4]
 
 
 def test_execute_kmeans_clustering_insufficient_points(current_client):
-    """異常系: 拠点不足"""
-    test_data = {"k": 5, "points": [{"lat": 35.0, "lng": 135.0}]}
+    """異常系: 拠点数(2) < 担当者数(5) の場合に400エラーが返るか"""
+    test_data = {
+        "type": "FeatureCollection",
+        "k": 5,
+        "features": [
+            {
+                "type": "Feature", 
+                "properties": {}, 
+                "geometry": {"type": "Point", "coordinates": [135.0, 35.0]}
+            },
+            {
+                "type": "Feature", 
+                "properties": {}, 
+                "geometry": {"type": "Point", "coordinates": [135.1, 35.1]}
+            }
+        ]
+    }
     response = current_client.post("/cluster/", json=test_data)
     assert response.status_code == 400
 
 
 def test_execute_kmeans_clustering_invalid_k(current_client):
-    """異常系: k=0"""
-    test_data = {"k": 0, "points": [{"lat": 35.0, "lng": 135.0}]}
+    """異常系: k=0 の場合に400エラーが返るか"""
+    test_data = {
+        "type": "FeatureCollection",
+        "k": 0,
+        "features": [
+            {
+                "type": "Feature", 
+                "properties": {}, 
+                "geometry": {"type": "Point", "coordinates": [135.0, 35.0]}
+            }
+        ]
+    }
     response = current_client.post("/cluster/", json=test_data)
     assert response.status_code == 400

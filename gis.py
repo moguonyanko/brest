@@ -1,6 +1,6 @@
 import json
 import math
-from fastapi import FastAPI, HTTPException, status, Body, Depends
+from fastapi import FastAPI, HTTPException, status, Body
 from pydantic import BaseModel
 from typing import Union, Annotated, Any
 from shapely import (
@@ -21,15 +21,13 @@ from shapely import (
 )
 from shapely import get_x, get_y, MultiLineString, is_valid
 from shapely.ops import triangulate, voronoi_diagram, split, nearest_points
-from pyproj import Proj, transform, Transformer, Geod
-from geojsontypes import FeatureCollection, Feature
-import networkx as nx
+from pyproj import Transformer, Geod
+from geojsontypes import FeatureCollection
 import osmnx as ox
-from sqlmodel import Field, Session, SQLModel, create_engine, select
 from fastapi_mcp import FastApiMCP
 import numpy as np
 from k_means_constrained import KMeansConstrained
-from scipy.spatial import ConvexHull, qhull
+from scipy.spatial import ConvexHull
 
 app = FastAPI(
     title="Brest GIS API",

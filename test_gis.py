@@ -133,84 +133,67 @@ def current_client():
 
 def test_execute_kmeans_clustering_balance(current_client):
     """
-    10個の拠点を3人で分割した場合、各矩形に3〜4個の拠点が
-    含まれているか（均等性のテスト）を確認します。
+    10個の拠点を3人で均等に分割し、GeoJSON形式で返ってくるかを確認します。
     """
-    # テスト用の入力データ
     test_data = {
         "k": 3,
         "points": [
-            {"lat": 35.6, "lng": 139.7}, {"lat": 35.61, "lng": 139.71},
-            {"lat": 35.62, "lng": 139.72}, {"lat": 35.63, "lng": 139.73},
-            {"lat": 35.64, "lng": 139.74}, {"lat": 35.65, "lng": 139.75},
-            {"lat": 35.66, "lng": 139.76}, {"lat": 35.67, "lng": 139.77},
-            {"lat": 35.68, "lng": 139.78}, {"lat": 35.69, "lng": 139.79}
+            {"lat": 35.6 + i*0.01, "lng": 139.7 + i*0.01} for i in range(10)
         ]
     }
 
-    # API呼び出し
     response = current_client.post("/cluster/", json=test_data)
-    
-    # レスポンスのステータスコード確認
     assert response.status_code == 200
     
     data = response.json()
-    rectangles = data["rectangles"]
     
-    # 指定した人数分（k個）の矩形が返ってきているか
-    assert len(rectangles) == 3
+    # GeoJSONのルート構造チェック
+    assert data["type"] == "FeatureCollection"
+    assert len(data["features"]) == 3
     
-    # 各矩形の拠点数が期待通り（3個か4個）かを確認
-    counts = [rect["count"] for rect in rectangles]
+    # 各Feature(矩形)内の拠点数が3〜4個であるか確認
+    counts = [f["properties"]["point_count"] for f in data["features"]]
     for count in counts:
         assert count in [3, 4]
-    
-    # 全拠点の合計が一致するか
     assert sum(counts) == 10
 
 
-def test_execute_kmeans_clustering_structure(current_client):
+def test_execute_kmeans_clustering_geojson_structure(current_client):
     """
-    レスポンスのデータ構造（緯度経度の形式など）が正しいかを確認します。
+    GeoJSONのポリゴン座標が正しい順序 [lng, lat] か、閉じているかを確認します。
     """
     test_data = {
         "k": 1,
-        "points": [{"lat": 35.0, "lng": 135.0}, {"lat": 36.0, "lng": 136.0}]
+        "points": [
+            {"lat": 35.0, "lng": 135.0},
+            {"lat": 36.0, "lng": 136.0}
+        ]
     }
     response = current_client.post("/cluster/", json=test_data)
-    rect = response.json()["rectangles"][0]
+    feature = response.json()["features"][0]
     
-    # boundsが [[min_lat, min_lng], [max_lat, max_lng]] の形式か
-    assert len(rect["bounds"]) == 2
-    assert rect["bounds"][0][0] == 35.0  # min_lat
-    assert rect["bounds"][1][0] == 36.0  # max_lat
+    # ジオメトリの検証
+    coords = feature["geometry"]["coordinates"][0] # 外枠のリング
+    assert feature["geometry"]["type"] == "Polygon"
+    
+    # GeoJSON標準: [lng, lat] の順序
+    # min_lng, min_lat
+    assert coords[0] == [135.0, 35.0]
+    # max_lng, max_lat (3番目の点)
+    assert coords[2] == [136.0, 36.0]
+    # 始点と終点が一致している（閉じている）
+    assert coords[0] == coords[4]
 
 
 def test_execute_kmeans_clustering_insufficient_points(current_client):
-    """
-    拠点数よりも担当者数(k)が多い場合に、400エラーが返るか確認します。
-    """
-    test_data = {
-        "k": 5,
-        "points": [
-            {"lat": 35.0, "lng": 135.0},
-            {"lat": 35.1, "lng": 135.1}
-        ] # 2拠点しかないのに5分割しようとする
-    }
-    
+    """異常系: 拠点不足"""
+    test_data = {"k": 5, "points": [{"lat": 35.0, "lng": 135.0}]}
     response = current_client.post("/cluster/", json=test_data)
-    
-    # 400エラーが返ってくることを期待
     assert response.status_code == 400
 
 
 def test_execute_kmeans_clustering_invalid_k(current_client):
-    """
-    kが0以下の場合に、400エラーが返るか確認します。
-    """
-    test_data = {
-        "k": 0,
-        "points": [{"lat": 35.0, "lng": 135.0}]
-    }
+    """異常系: k=0"""
+    test_data = {"k": 0, "points": [{"lat": 35.0, "lng": 135.0}]}
     response = current_client.post("/cluster/", json=test_data)
     assert response.status_code == 400

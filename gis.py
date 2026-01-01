@@ -518,18 +518,37 @@ async def execute_kmeans_clustering(request: ClusterRequest):
     )
     labels = clf.fit_predict(data)
 
-    rectangles = []
+    # GeoJSON構造の作成
+    features = []
     for i in range(request.k):
         cluster_data = data[labels == i]
         if len(cluster_data) > 0:
             min_lat, min_lng = cluster_data.min(axis=0)
             max_lat, max_lng = cluster_data.max(axis=0)
-            rectangles.append(
-                {
-                    "worker_id": i + 1,
-                    "bounds": [[min_lat, min_lng], [max_lat, max_lng]],
-                    "count": len(cluster_data),
-                }
-            )
 
-    return {"rectangles": rectangles}
+            # 矩形の4隅の座標を定義 (GeoJSONは [lng, lat] の順序であることに注意！)
+            # 座標は閉じている必要があるため、開始点と終了点を同じにします
+            polygon_coords = [[
+                [min_lng, min_lat],
+                [max_lng, min_lat],
+                [max_lng, max_lat],
+                [min_lng, max_lat],
+                [min_lng, min_lat]
+            ]]
+
+            features.append({
+                "type": "Feature",
+                "properties": {
+                    "worker_id": i + 1,
+                    "point_count": int(len(cluster_data))
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": polygon_coords
+                }
+            })
+            
+    return {
+        "type": "FeatureCollection",
+        "features": features
+    }

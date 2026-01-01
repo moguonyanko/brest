@@ -565,8 +565,17 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
             ]
 
         else:
-            # 1点の場合はポリゴンが作れないためスキップ、または小さな円状の矩形
-            continue
+            # 1点の場合：中心点の周囲に微小な正方形を作成
+            lat, lng = cluster_data[0]
+            # 約11メートル四方のマージン（0.0001度 ≒ 約11m）
+            offset = 0.0001 
+            polygon_coords = [[
+                [lng - offset, lat - offset],
+                [lng + offset, lat - offset],
+                [lng + offset, lat + offset],
+                [lng - offset, lat + offset],
+                [lng - offset, lat - offset]
+            ]]
 
         features.append(
             {

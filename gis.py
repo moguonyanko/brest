@@ -29,6 +29,7 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 from fastapi_mcp import FastApiMCP
 import numpy as np
 from k_means_constrained import KMeansConstrained
+from scipy.spatial import ConvexHull, qhull
 
 app = FastAPI(
     title="Brest GIS API",
@@ -539,12 +540,22 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
     features = []
     for i in range(request.k):
         cluster_data = data[labels == i]
-        if len(cluster_data) > 0:
+
+        if len(cluster_data) >= 3:
+            # 3点以上あれば凸包（多角形）が計算可能
+            hull = ConvexHull(cluster_data)
+            # 凸包の頂点を順番に取得
+            hull_points = cluster_data[hull.vertices]
+            # GeoJSON用に [lng, lat] に変換し、始点と終点を閉じる
+            polygon_coords = [
+                [[p[1], p[0]] for p in hull_points]
+                + [[hull_points[0][1], hull_points[0][0]]]
+            ]
+
+        elif len(cluster_data) == 2:
+            # 2点の場合は線になるため、少し膨らませるか、矩形で代用
             min_lat, min_lng = cluster_data.min(axis=0)
             max_lat, max_lng = cluster_data.max(axis=0)
-
-            # 矩形の4隅の座標を定義 (GeoJSONは [lng, lat] の順序であることに注意！)
-            # 座標は閉じている必要があるため、開始点と終了点を同じにします
             polygon_coords = [
                 [
                     [min_lng, min_lat],
@@ -555,15 +566,19 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
                 ]
             ]
 
-            features.append(
-                {
-                    "type": "Feature",
-                    "properties": {
-                        "worker_id": i + 1,
-                        "point_count": int(len(cluster_data)),
-                    },
-                    "geometry": {"type": "Polygon", "coordinates": polygon_coords},
-                }
-            )
+        else:
+            # 1点の場合はポリゴンが作れないためスキップ、または小さな円状の矩形
+            continue
+
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {
+                    "worker_id": i + 1,
+                    "point_count": int(len(cluster_data)),
+                },
+                "geometry": {"type": "Polygon", "coordinates": polygon_coords},
+            }
+        )
 
     return {"type": "FeatureCollection", "features": features}

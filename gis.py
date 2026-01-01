@@ -474,13 +474,22 @@ async def execute_crosscheck(target: FeatureCollection):
 
 # GeoJSONリクエスト用のモデル
 class GeoJSONFeature(BaseModel):
+    type: str
     properties: dict[str, Any]
     geometry: dict[str, Any]
 
 
-class GeoJSONRequest(BaseModel):
+class GeoJSONFeatureCollection(BaseModel):
+    type: str
     features: list[GeoJSONFeature]
+
+
+class GeoJSONRequest(BaseModel):
+    geojson: GeoJSONFeatureCollection
     k: int  # 担当者数（リクエストに含める）
+
+    def get_features(self) -> list[GeoJSONFeature]:
+        return self.geojson.features
 
 
 def _validate_points(request: GeoJSONRequest, n_points: int):
@@ -505,11 +514,11 @@ def _validate_points(request: GeoJSONRequest, n_points: int):
 async def execute_kmeans_clustering(request: GeoJSONRequest):
     # GeoJSONから座標リスト [lat, lng] を抽出
     points = []
-    for feature in request.features:
+    for feature in request.get_features():
         if feature.geometry["type"] == "Point":
             lng, lat = feature.geometry["coordinates"]
             points.append([lat, lng])
-    
+
     data = np.array(points)
     n_points = len(data)
 
@@ -536,27 +545,25 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
 
             # 矩形の4隅の座標を定義 (GeoJSONは [lng, lat] の順序であることに注意！)
             # 座標は閉じている必要があるため、開始点と終了点を同じにします
-            polygon_coords = [[
-                [min_lng, min_lat],
-                [max_lng, min_lat],
-                [max_lng, max_lat],
-                [min_lng, max_lat],
-                [min_lng, min_lat]
-            ]]
+            polygon_coords = [
+                [
+                    [min_lng, min_lat],
+                    [max_lng, min_lat],
+                    [max_lng, max_lat],
+                    [min_lng, max_lat],
+                    [min_lng, min_lat],
+                ]
+            ]
 
-            features.append({
-                "type": "Feature",
-                "properties": {
-                    "worker_id": i + 1,
-                    "point_count": int(len(cluster_data))
-                },
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": polygon_coords
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "worker_id": i + 1,
+                        "point_count": int(len(cluster_data)),
+                    },
+                    "geometry": {"type": "Polygon", "coordinates": polygon_coords},
                 }
-            })
-            
-    return {
-        "type": "FeatureCollection",
-        "features": features
-    }
+            )
+
+    return {"type": "FeatureCollection", "features": features}

@@ -505,6 +505,20 @@ def _validate_points(request: GeoJSONRequest, n_points: int):
         )
 
 
+def _extract_clustering_data(request: GeoJSONRequest):
+    points_spatial = []
+    altitudes = []
+    for feature in request.get_features():
+        if feature.geometry["type"] == "Point":
+            lng, lat = feature.geometry["coordinates"][:2]
+            alt = feature.properties.get("altitude", 0)
+            if alt == 0 and len(feature.geometry["coordinates"]) > 2:
+                alt = feature.geometry["coordinates"][2]
+            points_spatial.append([lat, lng])
+            altitudes.append([alt])
+
+    return np.array(points_spatial), np.array(altitudes)    
+
 @app.post(
     "/cluster/",
     tags=["geometry"],
@@ -512,45 +526,38 @@ def _validate_points(request: GeoJSONRequest, n_points: int):
     description="高度を考慮したクラスタリングを行い、傾斜負荷に応じた統計情報を含む凸包を返す。",
 )
 async def execute_kmeans_clustering(request: GeoJSONRequest):
-    # 1. データの抽出 (緯度, 経度, 高度)
-    points_spatial = []
-    altitudes = []
-    
-    for feature in request.get_features():
-        if feature.geometry["type"] == "Point":
-            lng = feature.geometry["coordinates"][0]
-            lat = feature.geometry["coordinates"][1]
-            # properties または coordinates[2] から高度を取得
-            alt = feature.properties.get("altitude", 0)
-            if alt == 0 and len(feature.geometry["coordinates"]) > 2:
-                alt = feature.geometry["coordinates"][2]
-            
-            points_spatial.append([lat, lng])
-            altitudes.append([alt])
-
-    all_points_array = np.array(points_spatial)
-    altitudes_array = np.array(altitudes)
+    # データ抽出
+    all_points_array, altitudes_array = _extract_clustering_data(request)
     points_size = len(all_points_array)
 
     _validate_points(request, points_size)
 
-    # 2. 標準化 (Standardization)
-    # 緯度経度と高度のスケールを合わせる。これを行わないと高度の数値に結果が支配される。
-    combined_data = np.hstack([all_points_array, altitudes_array])
+    # 標準化
+    combined_data = np.hstack([all_points_array, altitudes_array]).astype(np.float64)
     scaler = StandardScaler()
     scaled_data = scaler.fit_transform(combined_data)
 
-    # 3. 制約付きk-meansの実行 (3次元データを使用)
-    # 均等割り振りを基本とする
-    min_size = points_size // request.k
-    max_size = (points_size + request.k - 1) // request.k
+    # 高度ウェイトの強化
+    # 高度方向の差を水平距離の 2.5倍 重く評価する
+    # これにより「坂をまたぐ」クラスタリングを抑制する
+    scaled_data_weighted = scaled_data.copy()
+    scaled_data_weighted[:, 2] *= 2.5 
+
+    # 制約付きk-meansの実行
+    # 傾斜の激しいエリアから拠点が溢れることを許容するため、サイズに遊びを持たせる
+    avg_size = points_size / request.k
+    min_size = max(1, int(avg_size - 1))
+    max_size = int(np.ceil(avg_size + 1))
 
     clf = KMeansConstrained(
-        n_clusters=request.k, size_min=min_size, size_max=max_size, random_state=42
+        n_clusters=request.k,
+        size_min=min_size,
+        size_max=max_size,
+        random_state=42
     )
-    labels = clf.fit_predict(scaled_data)
+    labels = clf.fit_predict(scaled_data_weighted)
 
-    # 4. GeoJSON構造の作成
+    # GeoJSON構造の作成
     features = []
     for i in range(request.k):
         cluster_mask = (labels == i)

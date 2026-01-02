@@ -509,74 +509,81 @@ def _validate_points(request: GeoJSONRequest, n_points: int):
     "/cluster/",
     tags=["geometry"],
     response_model=dict[str, Any],
-    description="k-means法に基づいて拠点をクラスタリングし、各クラスタの最小外接矩形を求める。",
+    description="高度を考慮したクラスタリングを行い、傾斜負荷に応じた統計情報を含む凸包を返す。",
 )
 async def execute_kmeans_clustering(request: GeoJSONRequest):
-    # GeoJSONから座標リスト [lat, lng] を抽出
-    points = []
+    # 1. データの抽出 (緯度, 経度, 高度)
+    points_spatial = []
+    altitudes = []
+    
     for feature in request.get_features():
         if feature.geometry["type"] == "Point":
-            lng, lat = feature.geometry["coordinates"]
-            points.append([lat, lng])
+            lng = feature.geometry["coordinates"][0]
+            lat = feature.geometry["coordinates"][1]
+            # properties または coordinates[2] から高度を取得
+            alt = feature.properties.get("altitude", 0)
+            if alt == 0 and len(feature.geometry["coordinates"]) > 2:
+                alt = feature.geometry["coordinates"][2]
+            
+            points_spatial.append([lat, lng])
+            altitudes.append([alt])
 
-    all_points_array = np.array(points)
+    all_points_array = np.array(points_spatial)
+    altitudes_array = np.array(altitudes)
     points_size = len(all_points_array)
 
     _validate_points(request, points_size)
 
-    # 1人あたりの拠点数を計算（均等に割り振る制約）
-    # 例：21拠点、5人の場合、4〜5拠点になるよう制限
+    # 2. 標準化 (Standardization)
+    # 緯度経度と高度のスケールを合わせる。これを行わないと高度の数値に結果が支配される。
+    combined_data = np.hstack([all_points_array, altitudes_array])
+    scaler = StandardScaler()
+    scaled_data = scaler.fit_transform(combined_data)
+
+    # 3. 制約付きk-meansの実行 (3次元データを使用)
+    # 均等割り振りを基本とする
     min_size = points_size // request.k
     max_size = (points_size + request.k - 1) // request.k
 
-    # 制約付きk-meansの実行
     clf = KMeansConstrained(
         n_clusters=request.k, size_min=min_size, size_max=max_size, random_state=42
     )
-    labels = clf.fit_predict(all_points_array)
+    labels = clf.fit_predict(scaled_data)
 
-    # GeoJSON構造の作成
+    # 4. GeoJSON構造の作成
     features = []
     for i in range(request.k):
-        cluster_data = all_points_array[labels == i]
+        cluster_mask = (labels == i)
+        cluster_data = all_points_array[cluster_mask]
+        cluster_alts = altitudes_array[cluster_mask]
+        
+        # 傾斜負荷の計算 (高度の標準偏差 = そのエリアの起伏の激しさ)
+        elevation_gain = np.max(cluster_alts) - np.min(cluster_alts) if len(cluster_alts) > 0 else 0
+        slope_risk = np.std(cluster_alts) if len(cluster_alts) > 0 else 0
 
+        # --- 図形生成ロジック (凸包 / 矩形 / 1点) ---
         if len(cluster_data) >= 3:
-            # 3点以上あれば凸包（多角形）が計算可能
-            hull = ConvexHull(cluster_data)
-            # 凸包の頂点を順番に取得
-            hull_points = cluster_data[hull.vertices]
-            # GeoJSON用に [lng, lat] に変換し、始点と終点を閉じる
-            polygon_coords = [
-                [[p[1], p[0]] for p in hull_points]
-                + [[hull_points[0][1], hull_points[0][0]]]
-            ]
+            try:
+                hull = ConvexHull(cluster_data)
+                hull_points = cluster_data[hull.vertices]
+                polygon_coords = [
+                    [[p[1], p[0]] for p in hull_points]
+                    + [[hull_points[0][1], hull_points[0][0]]]
+                ]
+            except: # 同一線上の場合などは矩形にフォールバック
+                min_lat, min_lng = cluster_data.min(axis=0)
+                max_lat, max_lng = cluster_data.max(axis=0)
+                polygon_coords = [[[min_lng, min_lat], [max_lng, min_lat], [max_lng, max_lat], [min_lng, max_lat], [min_lng, min_lat]]]
 
         elif len(cluster_data) == 2:
-            # 2点の場合は線になってしまうため矩形で代用
             min_lat, min_lng = cluster_data.min(axis=0)
             max_lat, max_lng = cluster_data.max(axis=0)
-            polygon_coords = [
-                [
-                    [min_lng, min_lat],
-                    [max_lng, min_lat],
-                    [max_lng, max_lat],
-                    [min_lng, max_lat],
-                    [min_lng, min_lat],
-                ]
-            ]
+            polygon_coords = [[[min_lng, min_lat], [max_lng, min_lat], [max_lng, max_lat], [min_lng, max_lat], [min_lng, min_lat]]]
 
         else:
-            # 1点の場合：中心点の周囲に微小な正方形を作成
             lat, lng = cluster_data[0]
-            # 約11メートル四方のマージン（0.0001度 ≒ 約11m）
             offset = 0.0001 
-            polygon_coords = [[
-                [lng - offset, lat - offset],
-                [lng + offset, lat - offset],
-                [lng + offset, lat + offset],
-                [lng - offset, lat + offset],
-                [lng - offset, lat - offset]
-            ]]
+            polygon_coords = [[[lng - offset, lat - offset], [lng + offset, lat - offset], [lng + offset, lat + offset], [lng - offset, lat + offset], [lng - offset, lat - offset]]]
 
         features.append(
             {
@@ -584,9 +591,13 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
                 "properties": {
                     "worker_id": i + 1,
                     "point_count": int(len(cluster_data)),
+                    "avg_altitude": round(float(np.mean(cluster_alts)), 2),
+                    "elevation_gain": round(float(elevation_gain), 2),
+                    "slope_risk": round(float(slope_risk), 2), # これが高いと傾斜が厳しい
                 },
                 "geometry": {"type": "Polygon", "coordinates": polygon_coords},
             }
         )
 
     return {"type": "FeatureCollection", "features": features}
+

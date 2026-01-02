@@ -38,7 +38,10 @@
         "9000"
       ],
       "jinja": true,
-      "justMyCode": true
+      "justMyCode": true,
+      "env": {
+        "PYDEVD_USE_SYS_MONITORING": "0"
+      }      
     },
     {
       "name": "FastAPI: Brest Examples Debugging",

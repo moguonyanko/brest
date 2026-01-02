@@ -28,6 +28,7 @@ from fastapi_mcp import FastApiMCP
 import numpy as np
 from k_means_constrained import KMeansConstrained
 from scipy.spatial import ConvexHull
+from sklearn.preprocessing import StandardScaler
 
 app = FastAPI(
     title="Brest GIS API",
@@ -518,26 +519,26 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
             lng, lat = feature.geometry["coordinates"]
             points.append([lat, lng])
 
-    data = np.array(points)
-    n_points = len(data)
+    all_points_array = np.array(points)
+    points_size = len(all_points_array)
 
-    _validate_points(request, n_points)
+    _validate_points(request, points_size)
 
     # 1人あたりの拠点数を計算（均等に割り振る制約）
     # 例：21拠点、5人の場合、4〜5拠点になるよう制限
-    min_size = n_points // request.k
-    max_size = (n_points + request.k - 1) // request.k
+    min_size = points_size // request.k
+    max_size = (points_size + request.k - 1) // request.k
 
     # 制約付きk-meansの実行
     clf = KMeansConstrained(
         n_clusters=request.k, size_min=min_size, size_max=max_size, random_state=42
     )
-    labels = clf.fit_predict(data)
+    labels = clf.fit_predict(all_points_array)
 
     # GeoJSON構造の作成
     features = []
     for i in range(request.k):
-        cluster_data = data[labels == i]
+        cluster_data = all_points_array[labels == i]
 
         if len(cluster_data) >= 3:
             # 3点以上あれば凸包（多角形）が計算可能
@@ -551,7 +552,7 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
             ]
 
         elif len(cluster_data) == 2:
-            # 2点の場合は線になるため、少し膨らませるか、矩形で代用
+            # 2点の場合は線になってしまうため矩形で代用
             min_lat, min_lng = cluster_data.min(axis=0)
             max_lat, max_lng = cluster_data.max(axis=0)
             polygon_coords = [

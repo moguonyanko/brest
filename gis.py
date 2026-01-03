@@ -541,7 +541,8 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
     # 高度方向の差を水平距離の 2.5倍 重く評価する
     # これにより「坂をまたぐ」クラスタリングを抑制する
     scaled_data_weighted = scaled_data.copy()
-    scaled_data_weighted[:, 2] *= 2.5 
+    weight = 2.5 # これを調整することで傾斜負荷の影響度を変えられる
+    scaled_data_weighted[:, 2] *= weight
 
     # 制約付きk-meansの実行
     # 傾斜の激しいエリアから拠点が溢れることを許容するため、サイズに遊びを持たせる

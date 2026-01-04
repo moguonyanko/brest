@@ -533,11 +533,14 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
     _validate_points(request, points_size)
 
     # 標準化
+    # 2次元の座標と高度を結合して標準化を行う
+    # 0.0001など狭い範囲で変化する経緯度に対して高度は広い範囲で変化する
+    # 標準化しないとこの後の重み付けが意味をなさなくなる
     combined_data = np.hstack([all_points_array, altitudes_array]).astype(np.float64)
     scaler = StandardScaler()
     scaled_data = scaler.fit_transform(combined_data)
 
-    # 高度ウェイトの強化
+    # 高度ウェイトの強化（重み付け）
     # 高度方向の差を水平距離の 2.5倍 重く評価する
     # これにより「坂をまたぐ」クラスタリングを抑制する
     scaled_data_weighted = scaled_data.copy()

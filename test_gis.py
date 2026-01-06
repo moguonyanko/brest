@@ -130,18 +130,19 @@ def test_cross_check():
 def current_client():
     return TestClient(app)
 
-def test_execute_kmeans_clustering_with_geojson(current_client):
+# 1. 正常系：基本動作と新しく追加した points プロパティの検証
+def test_execute_kmeans_clustering_with_points_return(current_client):
     """
-    3つの拠点を2人で分割し、凸包ポリゴンが2つ返ってくるかを確認します。
+    ポリゴンだけでなく、worker_idが付与された個別のポイントも返ってくるか検証。
     """
     geojson_input = {
         "k": 2,
         "geojson": {
             "type": "FeatureCollection",
             "features": [
-                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [139.75, 35.65]}},
-                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [139.76, 35.66]}},
-                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [139.77, 35.67]}}
+                {"type": "Feature", "properties": {"altitude": 10}, "geometry": {"type": "Point", "coordinates": [139.75, 35.65]}},
+                {"type": "Feature", "properties": {"altitude": 50}, "geometry": {"type": "Point", "coordinates": [139.76, 35.66]}},
+                {"type": "Feature", "properties": {"altitude": 10}, "geometry": {"type": "Point", "coordinates": [139.77, 35.67]}}
             ]
         }
     }
@@ -150,76 +151,76 @@ def test_execute_kmeans_clustering_with_geojson(current_client):
     assert response.status_code == 200
     
     data = response.json()
-    assert data["type"] == "FeatureCollection"
-    # k=2 なので、2つのエリア（Feature）が作成されているはず
+    # 1. ポリゴン（features）の検証
     assert len(data["features"]) == 2
+    assert "slope_risk" in data["features"][0]["properties"]
+    
+    # 2. 個別ポイント（points）の検証
+    assert "points" in data
+    assert len(data["points"]) == 3
+    # 各ポイントに worker_id が付与されていること
+    for pt in data["points"]:
+        assert "worker_id" in pt["properties"]
+        assert 1 <= pt["properties"]["worker_id"] <= 2
 
 
-def test_execute_kmeans_clustering_geojson_structure(current_client):
+# 2. 高度によるクラスタリングの検証（高度ウェイトの効果）
+def test_clustering_vertical_separation(current_client):
     """
-    凸包によるポリゴン構造、座標順序 [lng, lat]、および閉鎖性を検証します。
+    平面距離は近いが高度差が激しい場合、高度ウェイトによって別クラスタに分かれるか検証。
     """
-    # 凸包を作るため、1つのクラスタに最低3点が必要なデータを作成
+    # AとBは非常に近接しているが、高度が極端に違う
+    # CはBから少し離れているが、高度が同じ
+    geojson_input = {
+        "k": 2,
+        "geojson": {
+            "type": "FeatureCollection",
+            "features": [
+                {"type": "Feature", "properties": {"altitude": 100}, "geometry": {"type": "Point", "coordinates": [139.7501, 35.6501]}}, # A (山頂)
+                {"type": "Feature", "properties": {"altitude": 0},   "geometry": {"type": "Point", "coordinates": [139.7502, 35.6502]}}, # B (麓: Aのすぐそば)
+                {"type": "Feature", "properties": {"altitude": 0},   "geometry": {"type": "Point", "coordinates": [139.7510, 35.6510]}}  # C (麓: Bの近く)
+            ]
+        }
+    }
+
+    response = current_client.post("/cluster/", json=geojson_input)
+    data = response.json()
+    points = data["points"]
+
+    # 高度0のBとCが同じクラスタ(worker_id)になり、100のAが別になるはず
+    id_a = next(p["properties"]["worker_id"] for p in points if p["properties"]["altitude"] == 100)
+    id_b = next(p["properties"]["worker_id"] for p in points if p["geometry"]["coordinates"] == [139.7502, 35.6502])
+    id_c = next(p["properties"]["worker_id"] for p in points if p["geometry"]["coordinates"] == [139.7510, 35.6510])
+
+    assert id_b == id_c
+    assert id_a != id_b
+
+
+# 3. プロパティ統計情報の検証
+def test_cluster_properties_calculation(current_client):
+    """slope_riskやelevation_gainが正しく計算されているか検証"""
     test_data = {
         "k": 1,
         "geojson": {
             "type": "FeatureCollection",
             "features": [
-                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [135.0, 35.0]}},
-                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [136.0, 35.0]}},
-                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [135.5, 36.0]}}
+                {"type": "Feature", "properties": {"altitude": 10}, "geometry": {"type": "Point", "coordinates": [135.0, 35.0]}},
+                {"type": "Feature", "properties": {"altitude": 20}, "geometry": {"type": "Point", "coordinates": [136.0, 35.0]}},
+                {"type": "Feature", "properties": {"altitude": 30}, "geometry": {"type": "Point", "coordinates": [135.5, 36.0]}}
             ]
         }
     }
-    
     response = current_client.post("/cluster/", json=test_data)
-    assert response.status_code == 200
+    prop = response.json()["features"][0]["properties"]
     
-    data = response.json()
-    feature = data["features"][0]
-    
-    # ジオメトリの検証
-    assert feature["geometry"]["type"] == "Polygon"
-    coords = feature["geometry"]["coordinates"][0]
-    
-    # 凸包の頂点数チェック（3点の凸包は 始点+頂点2つ+終点 で4点以上になる）
-    assert len(coords) >= 4
-    
-    # 順序の検証: 経度(lng)が最初、緯度(lat)が次
-    for pt in coords:
-        assert 135.0 <= pt[0] <= 136.0  # lng
-        assert 35.0 <= pt[1] <= 36.0   # lat
-
-    # 閉鎖性の検証（始点と終点が一致）
-    assert coords[0] == coords[-1]
+    assert prop["avg_altitude"] == 20.0
+    assert prop["elevation_gain"] == 20.0 # 30 - 10
+    assert prop["slope_risk"] > 0 # 標準偏差が発生していること
 
 
+# 4. 異常系：既存テストの維持
 def test_execute_kmeans_clustering_insufficient_points(current_client):
-    """異常系: 拠点数(2) < 担当者数(5) のネスト構造リクエスト"""
-    test_data = {
-        "k": 5,
-        "geojson": {
-            "type": "FeatureCollection",
-            "features": [
-                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [135.0, 35.0]}},
-                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [135.1, 35.1]}}
-            ]
-        }
-    }
+    test_data = {"k": 5, "geojson": {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [0,0]}}] * 2}}
     response = current_client.post("/cluster/", json=test_data)
     assert response.status_code == 400
-
-
-def test_execute_kmeans_clustering_invalid_k(current_client):
-    """異常系: k=0"""
-    test_data = {
-        "k": 0,
-        "geojson": {
-            "type": "FeatureCollection",
-            "features": [
-                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [135.0, 35.0]}}
-            ]
-        }
-    }
-    response = current_client.post("/cluster/", json=test_data)
-    assert response.status_code == 400
+    

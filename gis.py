@@ -517,7 +517,88 @@ def _extract_clustering_data(request: GeoJSONRequest):
             points_spatial.append([lat, lng])
             altitudes.append([alt])
 
-    return np.array(points_spatial), np.array(altitudes)    
+    return np.array(points_spatial), np.array(altitudes)
+
+
+def _create_response_clustering_json(k, labels, all_points_array, altitudes_array):
+    # GeoJSON構造の作成
+    features = []
+    for i in range(k):
+        cluster_mask = labels == i
+        cluster_data = all_points_array[cluster_mask]
+        cluster_alts = altitudes_array[cluster_mask]
+
+        # 傾斜負荷の計算 (高度の標準偏差 = そのエリアの起伏の激しさ)
+        elevation_gain = (
+            np.max(cluster_alts) - np.min(cluster_alts) if len(cluster_alts) > 0 else 0
+        )
+        slope_risk = np.std(cluster_alts) if len(cluster_alts) > 0 else 0
+
+        # --- 図形生成ロジック (凸包 / 矩形 / 1点) ---
+        if len(cluster_data) >= 3:
+            try:
+                hull = ConvexHull(cluster_data)
+                hull_points = cluster_data[hull.vertices]
+                polygon_coords = [
+                    [[p[1], p[0]] for p in hull_points]
+                    + [[hull_points[0][1], hull_points[0][0]]]
+                ]
+            except:  # 同一線上の場合などは矩形にフォールバック
+                min_lat, min_lng = cluster_data.min(axis=0)
+                max_lat, max_lng = cluster_data.max(axis=0)
+                polygon_coords = [
+                    [
+                        [min_lng, min_lat],
+                        [max_lng, min_lat],
+                        [max_lng, max_lat],
+                        [min_lng, max_lat],
+                        [min_lng, min_lat],
+                    ]
+                ]
+
+        elif len(cluster_data) == 2:
+            min_lat, min_lng = cluster_data.min(axis=0)
+            max_lat, max_lng = cluster_data.max(axis=0)
+            polygon_coords = [
+                [
+                    [min_lng, min_lat],
+                    [max_lng, min_lat],
+                    [max_lng, max_lat],
+                    [min_lng, max_lat],
+                    [min_lng, min_lat],
+                ]
+            ]
+
+        else:
+            lat, lng = cluster_data[0]
+            offset = 0.0001
+            polygon_coords = [
+                [
+                    [lng - offset, lat - offset],
+                    [lng + offset, lat - offset],
+                    [lng + offset, lat + offset],
+                    [lng - offset, lat + offset],
+                    [lng - offset, lat - offset],
+                ]
+            ]
+
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {
+                    "worker_id": i + 1,
+                    "point_count": int(len(cluster_data)),
+                    "avg_altitude": round(float(np.mean(cluster_alts)), 2),
+                    "elevation_gain": round(float(elevation_gain), 2),
+                    "slope_risk": round(
+                        float(slope_risk), 2
+                    ),  # これが高いと傾斜が厳しい
+                },
+                "geometry": {"type": "Polygon", "coordinates": polygon_coords},
+            }
+        )
+
+    return features    
 
 @app.post(
     "/cluster/",
@@ -544,7 +625,7 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
     # 高度方向の差を水平距離の 2.5倍 重く評価する
     # これにより「坂をまたぐ」クラスタリングを抑制する
     scaled_data_weighted = scaled_data.copy()
-    weight = 2.5 # これを調整することで傾斜負荷の影響度を変えられる
+    weight = 2.5  # これを調整することで傾斜負荷の影響度を変えられる
     scaled_data_weighted[:, 2] *= weight
 
     # 制約付きk-meansの実行
@@ -554,61 +635,19 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
     max_size = int(np.ceil(avg_size + 1))
 
     clf = KMeansConstrained(
-        n_clusters=request.k,
-        size_min=min_size,
-        size_max=max_size,
-        random_state=42
+        n_clusters=request.k, size_min=min_size, size_max=max_size, random_state=42
     )
     labels = clf.fit_predict(scaled_data_weighted)
 
     # GeoJSON構造の作成
-    features = []
-    for i in range(request.k):
-        cluster_mask = (labels == i)
-        cluster_data = all_points_array[cluster_mask]
-        cluster_alts = altitudes_array[cluster_mask]
-        
-        # 傾斜負荷の計算 (高度の標準偏差 = そのエリアの起伏の激しさ)
-        elevation_gain = np.max(cluster_alts) - np.min(cluster_alts) if len(cluster_alts) > 0 else 0
-        slope_risk = np.std(cluster_alts) if len(cluster_alts) > 0 else 0
+    features = _create_response_clustering_json(
+        k=request.k, 
+        labels=labels, 
+        all_points_array=all_points_array, 
+        altitudes_array=altitudes_array
+    )
 
-        # --- 図形生成ロジック (凸包 / 矩形 / 1点) ---
-        if len(cluster_data) >= 3:
-            try:
-                hull = ConvexHull(cluster_data)
-                hull_points = cluster_data[hull.vertices]
-                polygon_coords = [
-                    [[p[1], p[0]] for p in hull_points]
-                    + [[hull_points[0][1], hull_points[0][0]]]
-                ]
-            except: # 同一線上の場合などは矩形にフォールバック
-                min_lat, min_lng = cluster_data.min(axis=0)
-                max_lat, max_lng = cluster_data.max(axis=0)
-                polygon_coords = [[[min_lng, min_lat], [max_lng, min_lat], [max_lng, max_lat], [min_lng, max_lat], [min_lng, min_lat]]]
-
-        elif len(cluster_data) == 2:
-            min_lat, min_lng = cluster_data.min(axis=0)
-            max_lat, max_lng = cluster_data.max(axis=0)
-            polygon_coords = [[[min_lng, min_lat], [max_lng, min_lat], [max_lng, max_lat], [min_lng, max_lat], [min_lng, min_lat]]]
-
-        else:
-            lat, lng = cluster_data[0]
-            offset = 0.0001 
-            polygon_coords = [[[lng - offset, lat - offset], [lng + offset, lat - offset], [lng + offset, lat + offset], [lng - offset, lat + offset], [lng - offset, lat - offset]]]
-
-        features.append(
-            {
-                "type": "Feature",
-                "properties": {
-                    "worker_id": i + 1,
-                    "point_count": int(len(cluster_data)),
-                    "avg_altitude": round(float(np.mean(cluster_alts)), 2),
-                    "elevation_gain": round(float(elevation_gain), 2),
-                    "slope_risk": round(float(slope_risk), 2), # これが高いと傾斜が厳しい
-                },
-                "geometry": {"type": "Polygon", "coordinates": polygon_coords},
-            }
-        )
-
-    return {"type": "FeatureCollection", "features": features}
-
+    return {
+        "type": "FeatureCollection",
+        "features": features
+    }

@@ -649,5 +649,6 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
 
     return {
         "type": "FeatureCollection",
-        "features": features
+        "features": features,
+        "labels": labels.tolist()
     }

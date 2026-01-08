@@ -638,6 +638,11 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
         n_clusters=request.k, size_min=min_size, size_max=max_size, random_state=42
     )
     labels = clf.fit_predict(scaled_data_weighted)
+    # このチェックをしないとtoList()で警告される。
+    if labels is None:
+        raise HTTPException(
+            status_code=500, detail="クラスタリングの実行に失敗しました。"
+        )
 
     # GeoJSON構造の作成
     features = _create_response_clustering_json(

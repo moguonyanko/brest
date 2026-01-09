@@ -1,1 +1,0 @@
-2026-01-09 11:37:45,175 - ConfigLoader - ERROR - 【データ不備】スキーマ検証に失敗しました: [{"type":"value_error","loc":[],"msg":"Value error, altitute_weightは 0.1 以上である必要があります","input":{"altitute_weight":0,"size_tolerance":1},"ctx":{"error":"altitute_weightは 0.1 以上である必要があります"},"url":"https://errors.pydantic.dev/2.11/v/value_error"}]

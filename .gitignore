@@ -7,3 +7,4 @@ venv/
 genaiapi_keys.json
 dist/
 .DS_Store
+log/

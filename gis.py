@@ -32,6 +32,7 @@ from sklearn.preprocessing import StandardScaler
 from utils import load_json
 from functools import lru_cache
 import logging
+from pythonjsonlogger.json import JsonFormatter
 
 app = FastAPI(
     title="Brest GIS API",
@@ -53,12 +54,18 @@ mcp.mount()
 mcp.setup_server()
 
 # ログの設定（ファイルへの保存とフォーマット）
-logging.basicConfig(
-    filename="log/gis_error.log",
-    level=logging.ERROR,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+formatter = JsonFormatter(
+    # フォーマット文字列で 'asctime' を指定し、JSON上のキー名を 'timestamp' にマッピング
+    fmt="%(asctime)s %(levelname)s %(name)s %(message)s",
+    rename_fields={"asctime": "timestamp"},
+    # 日本語をそのまま表示するための設定
+    json_ensure_ascii=False,
 )
+logHandler = logging.FileHandler("log/gis_error.log", encoding="utf-8")
+logHandler.setFormatter(formatter)
 logger = logging.getLogger("ConfigLoader")
+logger.addHandler(logHandler)
+logger.setLevel(logging.INFO)
 
 
 @app.get("/hellogis/", tags=["test"])
@@ -629,11 +636,11 @@ class ClusteringConfig(BaseModel):
     altitute_weight: float
     size_tolerance: int
 
-    @model_validator(mode='after')
-    def check_weights_total(self) -> 'ClusteringConfig':
+    @model_validator(mode="after")
+    def check_altitude_weight(self) -> "ClusteringConfig":
         if self.altitute_weight < 0.1:
             raise ValueError("altitute_weightは 0.1 以上である必要があります")
-        return self    
+        return self
 
 
 # 設定ファイルがアプリケーション実行中に変わることがないことを想定してキャッシュする。
@@ -642,18 +649,33 @@ def _get_clustering_config() -> ClusteringConfig:
     try:
         # 1. ファイル読み込みとJSON構文チェック
         raw_config = load_json("gis_clustering_config.json")
-
         # 2. Pydanticによるバリデーション
-        return ClusteringConfig(**raw_config)
+        config = ClusteringConfig(**raw_config)
 
+        logger.info(
+            "設定を正常に読み込みました",
+            extra={
+                "config": config.model_dump(),  # Pydantic v2 の方法
+                "target_file": "gis_clustering_config.json",
+            },
+        )
+
+        return config
     except FileNotFoundError as e:
         msg = f"【ファイル欠落】: {e}"
         logger.error(msg)
         raise SystemExit(msg)
     except ValidationError as e:
         # Pydanticのエラーを先に書くことで、型不備を具体的に補足する。
-        msg = f"【データ不備】スキーマ検証に失敗しました: {e.json()}"
-        logger.error(msg)
+        # 構造化ログで詳細を出力するのでメッセージにjson()呼び出し結果は出力しない。
+        msg = "【データ不備】スキーマ検証に失敗しました"
+        # エラー内容をそのまま構造化データとして流す
+        # ValidationError以外のエラーはerrors()メソッドを持っていないので同じ記述はできない。
+        # ValidationErrorはPydanticのエラーなので構造化ログと相性が良い。
+        logger.error(
+            msg,
+            extra={"details": e.errors(), "target_file": "gis_clustering_config.json"},
+        )
         raise SystemExit(msg)
     except json.JSONDecodeError as e:
         msg = f"【構文エラー】JSONの書き方が間違っています: {e}"

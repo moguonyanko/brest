@@ -54,7 +54,7 @@ mcp.setup_server()
 
 # ログの設定（ファイルへの保存とフォーマット）
 logging.basicConfig(
-    filename="gis_error.log",
+    filename="log/gis_error.log",
     level=logging.ERROR,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )

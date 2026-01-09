@@ -1,10 +1,17 @@
 import json
+import pathlib
 
+def load_json(file_path: str):
+    path = pathlib.Path(file_path)
+    
+    if not path.exists():
+        raise FileNotFoundError(f"設定ファイルが見つかりません: {path.absolute()}")
 
-def load_json(path: str):
-    with open(path, "r") as f:
-        return json.load(f)
-
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"JSONの形式が正しくありません（{e.lineno}行目付近）: {e.msg}")
 
 def convert_normalized_bbox_to_pixel_bbox(
     bounding_box: dict,

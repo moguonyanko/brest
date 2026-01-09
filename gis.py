@@ -1,7 +1,7 @@
 import json
 import math
 from fastapi import FastAPI, HTTPException, status, Body
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError, ConfigDict
 from typing import Union, Annotated, Any
 from shapely import (
     from_geojson,
@@ -29,6 +29,8 @@ import numpy as np
 from k_means_constrained import KMeansConstrained
 from scipy.spatial import ConvexHull
 from sklearn.preprocessing import StandardScaler
+from utils import load_json
+from functools import lru_cache
 
 app = FastAPI(
     title="Brest GIS API",
@@ -598,7 +600,62 @@ def _create_response_clustering_json(k, labels, all_points_array, altitudes_arra
             }
         )
 
-    return features    
+    return features
+
+
+class ClusteringConfig(BaseModel):
+    """
+    クラスタリングに関する設定を保持するモデル。
+    これらの設定はgis_clustering_config.jsonから読み込まれる。
+    各設定値の存在確認を独自に行わないで済ませるために導入した。
+    このモデルにより各設定値が存在することや型に誤りがないことを保証できる。
+    例えばaltitute_weightが存在しない場合やfloat型でない場合はValidationErrorが発生する。
+    これにより設定ファイルの不備を早期に検出できる。
+    なお、設定ファイルの形式が変わった場合はこのモデルも更新する必要がある。
+    """
+    # model_config で frozen=True にして設定を後から変えられないようにする。
+    model_config = ConfigDict(frozen=True)    
+
+    altitute_weight: float
+    size_tolerance: int
+
+
+# 設定ファイルがアプリケーション実行中に変わることがないことを想定してキャッシュする。
+@lru_cache(maxsize=1)
+def _get_clustering_config() -> ClusteringConfig:
+    try:
+        # 1. ファイル読み込みとJSON構文チェック
+        raw_config = load_json("gis_clustering_config.json")
+        
+        # 2. Pydanticによるバリデーション
+        return ClusteringConfig(**raw_config)
+        
+    except FileNotFoundError as e:
+        print(f"【ファイル欠落】{e}")
+        exit(1)
+    except ValidationError as e:
+        # Pydanticのエラーを先に書くことで、型不備を具体的にキャッチ
+        print(f"【データ不備】スキーマ検証に失敗しました:\n{e}")
+        exit(1)
+    except json.JSONDecodeError as e:
+        # json.load() から投げられるエラーを個別にキャッチ
+        print(f"【構文エラー】JSONの書き方が間違っています: {e}")
+        exit(1)
+    except ValueError as e:
+        # その他の値に関するエラー
+        print(f"【その他の値エラー】{e}")
+        exit(1)
+
+
+def _get_clustering_weight() -> float:
+    config = _get_clustering_config()
+    return config.altitute_weight
+
+
+def _get_clustering_size_tolerance() -> int:
+    config = _get_clustering_config()
+    return config.size_tolerance
+
 
 @app.post(
     "/cluster/",
@@ -622,17 +679,20 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
     scaled_data = scaler.fit_transform(combined_data)
 
     # 高度ウェイトの強化（重み付け）
-    # 高度方向の差を水平距離の 2.5倍 重く評価する
+    # 高度方向の差を設定値に従って水平距離の倍重く評価する
     # これにより「坂をまたぐ」クラスタリングを抑制する
     scaled_data_weighted = scaled_data.copy()
-    weight = 2.5  # これを調整することで傾斜負荷の影響度を変えられる
+    # これを調整することで傾斜負荷の影響度を変えられる
+    weight = _get_clustering_weight()
     scaled_data_weighted[:, 2] *= weight
 
     # 制約付きk-meansの実行
-    # 傾斜の激しいエリアから拠点が溢れることを許容するため、サイズに遊びを持たせる
+    # 傾斜の激しいエリアから拠点が溢れることを許容するため、クラスタサイズに許容範囲（遊び）を持たせる
     avg_size = points_size / request.k
-    min_size = max(1, int(avg_size - 1))
-    max_size = int(np.ceil(avg_size + 1))
+    # これを調整することでクラスタサイズの許容範囲（遊び）を変えられる
+    tolerance = _get_clustering_size_tolerance()
+    min_size = max(1, int(avg_size - tolerance))
+    max_size = int(np.ceil(avg_size + tolerance))
 
     clf = KMeansConstrained(
         n_clusters=request.k, size_min=min_size, size_max=max_size, random_state=42
@@ -646,14 +706,14 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
 
     # GeoJSON構造の作成
     features = _create_response_clustering_json(
-        k=request.k, 
-        labels=labels, 
-        all_points_array=all_points_array, 
-        altitudes_array=altitudes_array
+        k=request.k,
+        labels=labels,
+        all_points_array=all_points_array,
+        altitudes_array=altitudes_array,
     )
 
     return {
         "type": "FeatureCollection",
         "features": features,
-        "labels": labels.tolist()
+        "labels": labels.tolist(),
     }

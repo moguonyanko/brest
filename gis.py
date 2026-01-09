@@ -639,6 +639,9 @@ class ClusteringConfig(BaseModel):
     @model_validator(mode="after")
     def check_altitude_weight(self) -> "ClusteringConfig":
         if self.altitute_weight < 0.1:
+            # ここでValidationErrorを返すと呼び出し元で補足できない。
+            # Pydanticのエラーハンドリングの過程で生成されるValidationErrorを補足させるため
+            # ここではValueErrorを発生させる。
             raise ValueError("altitute_weightは 0.1 以上である必要があります")
         return self
 

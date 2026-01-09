@@ -1,7 +1,7 @@
 import json
 import math
 from fastapi import FastAPI, HTTPException, status, Body
-from pydantic import BaseModel, ValidationError, ConfigDict
+from pydantic import BaseModel, ValidationError, ConfigDict, model_validator
 from typing import Union, Annotated, Any
 from shapely import (
     from_geojson,
@@ -31,6 +31,7 @@ from scipy.spatial import ConvexHull
 from sklearn.preprocessing import StandardScaler
 from utils import load_json
 from functools import lru_cache
+import logging
 
 app = FastAPI(
     title="Brest GIS API",
@@ -50,6 +51,14 @@ mcp.mount()
 
 # But if you re-run the setup, the new endpoints will now be exposed.
 mcp.setup_server()
+
+# ログの設定（ファイルへの保存とフォーマット）
+logging.basicConfig(
+    filename="gis_error.log",
+    level=logging.ERROR,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger("ConfigLoader")
 
 
 @app.get("/hellogis/", tags=["test"])
@@ -613,11 +622,18 @@ class ClusteringConfig(BaseModel):
     これにより設定ファイルの不備を早期に検出できる。
     なお、設定ファイルの形式が変わった場合はこのモデルも更新する必要がある。
     """
+
     # model_config で frozen=True にして設定を後から変えられないようにする。
-    model_config = ConfigDict(frozen=True)    
+    model_config = ConfigDict(frozen=True)
 
     altitute_weight: float
     size_tolerance: int
+
+    @model_validator(mode='after')
+    def check_weights_total(self) -> 'ClusteringConfig':
+        if self.altitute_weight < 0.1:
+            raise ValueError("altitute_weightは 0.1 以上である必要があります")
+        return self    
 
 
 # 設定ファイルがアプリケーション実行中に変わることがないことを想定してキャッシュする。
@@ -626,25 +642,27 @@ def _get_clustering_config() -> ClusteringConfig:
     try:
         # 1. ファイル読み込みとJSON構文チェック
         raw_config = load_json("gis_clustering_config.json")
-        
+
         # 2. Pydanticによるバリデーション
         return ClusteringConfig(**raw_config)
-        
+
     except FileNotFoundError as e:
-        print(f"【ファイル欠落】{e}")
-        exit(1)
+        msg = f"【ファイル欠落】: {e}"
+        logger.error(msg)
+        raise SystemExit(msg)
     except ValidationError as e:
-        # Pydanticのエラーを先に書くことで、型不備を具体的にキャッチ
-        print(f"【データ不備】スキーマ検証に失敗しました:\n{e}")
-        exit(1)
+        # Pydanticのエラーを先に書くことで、型不備を具体的に補足する。
+        msg = f"【データ不備】スキーマ検証に失敗しました: {e.json()}"
+        logger.error(msg)
+        raise SystemExit(msg)
     except json.JSONDecodeError as e:
-        # json.load() から投げられるエラーを個別にキャッチ
-        print(f"【構文エラー】JSONの書き方が間違っています: {e}")
-        exit(1)
+        msg = f"【構文エラー】JSONの書き方が間違っています: {e}"
+        logger.error(msg)
+        raise SystemExit(msg)
     except ValueError as e:
-        # その他の値に関するエラー
-        print(f"【その他の値エラー】{e}")
-        exit(1)
+        msg = f"【その他の値エラー】: {e}"
+        logger.error(msg)
+        raise SystemExit(msg)
 
 
 def _get_clustering_weight() -> float:

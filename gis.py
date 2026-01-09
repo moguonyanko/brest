@@ -32,6 +32,7 @@ from sklearn.preprocessing import StandardScaler
 from utils import load_json
 from functools import lru_cache
 import logging
+from logging.handlers import TimedRotatingFileHandler
 from pythonjsonlogger.json import JsonFormatter
 
 app = FastAPI(
@@ -61,7 +62,13 @@ formatter = JsonFormatter(
     # 日本語をそのまま表示するための設定
     json_ensure_ascii=False,
 )
-logHandler = logging.FileHandler("log/gis_error.log", encoding="utf-8")
+logHandler = TimedRotatingFileHandler(
+    "log/gis_error.log",
+    when="midnight",  # 毎日深夜0時にローテーション
+    interval=1,  # 1日ごとに実行
+    backupCount=30,  # 30日分保管し、古いものは自動削除
+    encoding="utf-8",
+)
 logHandler.setFormatter(formatter)
 logger = logging.getLogger("ConfigLoader")
 logger.addHandler(logHandler)

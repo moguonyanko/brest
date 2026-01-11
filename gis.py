@@ -742,7 +742,8 @@ async def execute_kmeans_clustering(request: GeoJSONRequest):
     # これを調整することでクラスタサイズの許容範囲（遊び）を変えられる
     tolerance = _get_clustering_size_tolerance()
     min_size = max(1, int(avg_size - tolerance))
-    max_size = int(np.ceil(avg_size + tolerance))
+    # max_size が全データ数を超えないようにpoints_sizeを使って調整する。
+    max_size = min(points_size, int(np.ceil(avg_size + tolerance)))
 
     clf = KMeansConstrained(
         n_clusters=request.k, size_min=min_size, size_max=max_size, random_state=42

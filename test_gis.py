@@ -130,10 +130,10 @@ def test_cross_check():
 def current_client():
     return TestClient(app)
 
-# 1. 正常系：基本動作と新しく追加した points プロパティの検証
-def test_execute_kmeans_clustering_with_points_return(current_client):
+# 1. 正常系：基本動作と labels プロパティの検証
+def test_execute_kmeans_clustering_with_labels_return(current_client):
     """
-    ポリゴンだけでなく、worker_idが付与された個別のポイントも返ってくるか検証。
+    ポリゴンと、フロントエンドでの紐付けに必要な labels 配列が返ってくるか検証。
     """
     geojson_input = {
         "k": 2,
@@ -151,17 +151,18 @@ def test_execute_kmeans_clustering_with_points_return(current_client):
     assert response.status_code == 200
     
     data = response.json()
-    # 1. ポリゴン（features）の検証
-    assert len(data["features"]) == 2
-    assert "slope_risk" in data["features"][0]["properties"]
     
-    # 2. 個別ポイント（points）の検証
-    assert "points" in data
-    assert len(data["points"]) == 3
-    # 各ポイントに worker_id が付与されていること
-    for pt in data["points"]:
-        assert "worker_id" in pt["properties"]
-        assert 1 <= pt["properties"]["worker_id"] <= 2
+    # ポリゴン（features）の検証
+    assert data["type"] == "FeatureCollection"
+    assert len(data["features"]) == 2
+    assert "worker_id" in data["features"][0]["properties"]
+    
+    # ラベル（labels）の検証
+    assert "labels" in data
+    assert len(data["labels"]) == 3  # 入力した地点数と同じはず
+    for label in data["labels"]:
+        # labelは0開始のインデックス (0 or 1)
+        assert 0 <= label <= 1
 
 
 # 2. 高度によるクラスタリングの検証（高度ウェイトの効果）
@@ -169,31 +170,29 @@ def test_clustering_vertical_separation(current_client):
     """
     平面距離は近いが高度差が激しい場合、高度ウェイトによって別クラスタに分かれるか検証。
     """
-    # AとBは非常に近接しているが、高度が極端に違う
-    # CはBから少し離れているが、高度が同じ
+    # AとBは非常に近接しているが、高度が極端に違う（A:100m, B:0m）
+    # CはBから少し離れているが、高度が同じ（B:0m, C:0m）
+    features = [
+        {"type": "Feature", "properties": {"altitude": 100}, "geometry": {"type": "Point", "coordinates": [139.7501, 35.6501]}}, # Index 0 (A)
+        {"type": "Feature", "properties": {"altitude": 0},   "geometry": {"type": "Point", "coordinates": [139.7502, 35.6502]}}, # Index 1 (B)
+        {"type": "Feature", "properties": {"altitude": 0},   "geometry": {"type": "Point", "coordinates": [139.7510, 35.6510]}}  # Index 2 (C)
+    ]
+    
     geojson_input = {
         "k": 2,
         "geojson": {
             "type": "FeatureCollection",
-            "features": [
-                {"type": "Feature", "properties": {"altitude": 100}, "geometry": {"type": "Point", "coordinates": [139.7501, 35.6501]}}, # A (山頂)
-                {"type": "Feature", "properties": {"altitude": 0},   "geometry": {"type": "Point", "coordinates": [139.7502, 35.6502]}}, # B (麓: Aのすぐそば)
-                {"type": "Feature", "properties": {"altitude": 0},   "geometry": {"type": "Point", "coordinates": [139.7510, 35.6510]}}  # C (麓: Bの近く)
-            ]
+            "features": features
         }
     }
 
     response = current_client.post("/cluster/", json=geojson_input)
     data = response.json()
-    points = data["points"]
+    labels = data["labels"]
 
-    # 高度0のBとCが同じクラスタ(worker_id)になり、100のAが別になるはず
-    id_a = next(p["properties"]["worker_id"] for p in points if p["properties"]["altitude"] == 100)
-    id_b = next(p["properties"]["worker_id"] for p in points if p["geometry"]["coordinates"] == [139.7502, 35.6502])
-    id_c = next(p["properties"]["worker_id"] for p in points if p["geometry"]["coordinates"] == [139.7510, 35.6510])
-
-    assert id_b == id_c
-    assert id_a != id_b
+    # 高度0のB(Index 1)とC(Index 2)が同じラベルになり、100のA(Index 0)が別になるはず
+    assert labels[1] == labels[2]
+    assert labels[0] != labels[1]
 
 
 # 3. プロパティ統計情報の検証
@@ -213,14 +212,27 @@ def test_cluster_properties_calculation(current_client):
     response = current_client.post("/cluster/", json=test_data)
     prop = response.json()["features"][0]["properties"]
     
+    # 3点の平均は20
     assert prop["avg_altitude"] == 20.0
-    assert prop["elevation_gain"] == 20.0 # 30 - 10
-    assert prop["slope_risk"] > 0 # 標準偏差が発生していること
+    # 最大30 - 最小10 = 20
+    assert prop["elevation_gain"] == 20.0
+    # 標準偏差が発生している
+    assert prop["slope_risk"] > 0 
 
 
-# 4. 異常系：既存テストの維持
+# 4. 異常系
 def test_execute_kmeans_clustering_insufficient_points(current_client):
-    test_data = {"k": 5, "geojson": {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [0,0]}}] * 2}}
+    """拠点数(2) < 担当者数(5) の場合に400エラーが返るか"""
+    test_data = {
+        "k": 5,
+        "geojson": {
+            "type": "FeatureCollection",
+            "features": [
+                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [0,0]}},
+                {"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [0,0]}}
+            ]
+        }
+    }
     response = current_client.post("/cluster/", json=test_data)
     assert response.status_code == 400
     

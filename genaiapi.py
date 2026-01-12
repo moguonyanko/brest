@@ -52,7 +52,7 @@ app_base_path = "/generate"
 
 
 # Gemini APIの共通設定読み込み
-genaiapi_config = load_json(path="genaiapi_config.json")
+genaiapi_config = load_json(file_path="genaiapi_config.json")
 
 
 def get_genai_client():

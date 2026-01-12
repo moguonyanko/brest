@@ -5,7 +5,7 @@
 from utils import load_json
 
 # Gemini APIのモデル設定読み込み
-genaiapi_models = load_json(path="genaiapi_models.json")
+genaiapi_models = load_json(file_path="genaiapi_models.json")
 genaiapi_model_names = genaiapi_models["model_name"]
 
 

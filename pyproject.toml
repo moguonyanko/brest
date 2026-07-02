@@ -1,0 +1,47 @@
+[project]
+name = "brest"
+version = "0.1.0"
+description = "My studying python porject with FastAPI"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "bs4",
+    "certifi",
+    "cryptography",
+    "dnspython",
+    "fastapi",
+    "fastapi-mcp",
+    "httpx",
+    "google-genai",
+    "k-means-constrained",
+    "librosa",
+    "networkx",
+    "nltk",
+    "numpy",
+    "osmnx",
+    "pandas",
+    "passlib",
+    "Pillow",
+    "playwright",
+    "psycopg[binary]",
+    "pydantic[email]",
+    "PyJWT",
+    "pypdf",
+    "pyproj",
+    "pytesseract",
+    "python-jose",
+    "python-json-logger",
+    "requests",
+    "scikit-learn",
+    "shapely",
+    "soundfile",
+    "SQLAlchemy",
+    "sqlmodel",
+    "starlette"
+]
+
+[dependency-groups]
+dev = [
+    "pytest-asyncio",
+    "pytest-timeout"
+]
